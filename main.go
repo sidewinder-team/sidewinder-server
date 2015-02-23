@@ -24,7 +24,6 @@ func SetupRoutes() {
 }
 
 func addDevice(context web.C, writer http.ResponseWriter, request *http.Request) {
-
 	decoder := json.NewDecoder(request.Body)
 
 	var sentJSON interface{}

@@ -1,11 +1,10 @@
 FROM golang:1.4
 
-RUN mkdir -p /go/src/app
-WORKDIR /go/src/app
-COPY . /go/src/app
+RUN mkdir -p /go/src/github.com/sidewinder-team/sidewinder-server
+WORKDIR /go/src/github.com/sidewinder-team/sidewinder-server
+COPY . /go/src/github.com/sidewinder-team/sidewinder-server
 
 RUN go-wrapper download
 RUN go-wrapper install
 RUN go get -t
 RUN go test
-
