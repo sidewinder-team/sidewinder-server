@@ -6,6 +6,6 @@ COPY . /go/src/app
 
 RUN go-wrapper download
 RUN go-wrapper install
-
+RUN go get -t
 RUN go test
 
