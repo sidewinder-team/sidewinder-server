@@ -10,7 +10,7 @@ import (
 )
 
 func hello(context web.C, w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Aloha, %s!", context.URLParams["name"])
+	fmt.Fprintf(w, "Herro, %s!", context.URLParams["name"])
 }
 
 func main() {
@@ -20,6 +20,7 @@ func main() {
 
 func SetupRoutes() {
 	goji.Get("/hello/:name", hello)
+	goji.Get("/store/info", GetDatastoreInfo)
 	goji.Post("/devices", addDevice)
 }
 
