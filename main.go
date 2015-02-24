@@ -10,7 +10,7 @@ import (
 )
 
 func hello(context web.C, w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello, %s!", context.URLParams["name"])
+	fmt.Fprintf(w, "Aloha, %s!", context.URLParams["name"])
 }
 
 func main() {
