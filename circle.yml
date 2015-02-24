@@ -14,5 +14,5 @@ deployment:
     branch: master
     commands:
       - docker tag -f sidewinder-server tutum.co/robertfmurdock/sidewinder-server
-      - docker login -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REPO
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REPO
       - docker push tutum.co/robertfmurdock/sidewinder-server 
