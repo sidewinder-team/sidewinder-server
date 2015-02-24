@@ -8,11 +8,11 @@ dependencies:
   pre:
     - docker info
     - if [[ -e ~/docker/image.tar ]]; then docker load --input ~/docker/image.tar; fi
-    - docker build -t sidewinder-server .
 deployment:
   hub:
     branch: master
     commands:
+      - docker build -t sidewinder-server .
       - docker tag -f sidewinder-server tutum.co/robertfmurdock/sidewinder-server
       - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REPO
       - docker push tutum.co/robertfmurdock/sidewinder-server
