@@ -9,7 +9,7 @@ dependencies:
     - docker info
     - if [[ -e ~/docker/image.tar ]]; then docker load --input ~/docker/image.tar; fi
     - docker build -t sidewinder-server .
-
+    - echo $GOPATH
 deployment:
   hub:
     branch: master
