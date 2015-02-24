@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("End2end", func() {
+var _ = Describe("Endpoint", func() {
 	server.SetupRoutes()
 
 	Describe("/devices", func() {
@@ -37,6 +37,19 @@ var _ = Describe("End2end", func() {
 				Expect(responseRecorder.Code).To(Equal(201))
 				Expect(responseRecorder.HeaderMap.Get("Content-Type")).To(Equal("application/json"))
 				Expect(responseRecorder.Body.String()).To(MatchJSON(data))
+			})
+		})
+
+		Describe("OPTIONS", func() {
+			It("Lists all the provided functions.", func() {
+				request, err := http.NewRequest("OPTIONS", "/devices", nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				responseRecorder := httptest.NewRecorder()
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				Expect(responseRecorder.Code).To(Equal(200))
+				Expect(responseRecorder.Body.String()).To(Equal(""))
+				Expect(responseRecorder.Header().Get("Allow")).To(Equal("POST"))
 			})
 		})
 	})

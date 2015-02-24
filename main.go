@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/handlers"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
 )
@@ -21,10 +22,13 @@ func main() {
 func SetupRoutes() {
 	goji.Get("/hello/:name", hello)
 	goji.Get("/store/info", GetDatastoreInfo)
-	goji.Post("/devices", addDevice)
+
+	goji.Handle("/devices", handlers.MethodHandler{
+		"POST": http.HandlerFunc(addDevice),
+	})
 }
 
-func addDevice(context web.C, writer http.ResponseWriter, request *http.Request) {
+func addDevice(writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)
 
 	var sentJSON interface{}
