@@ -44,11 +44,13 @@ func (self *SidewinderStore) AddDevice(deviceId string) error {
 
 type DatastoreInfo struct {
 	BuildInfo     mgo.BuildInfo
+	LiveServers   []string
 	DatabaseNames []string
 }
 
 func (self *SidewinderDirector) DatastoreInfo(context web.C, writer http.ResponseWriter, request *http.Request) {
 	session := self.Store().session
+
 	buildInfo, err := session.BuildInfo()
 	if err != nil {
 		fmt.Fprintf(writer, "Could not connect to MongoDB.\n%v", err.Error())
@@ -63,7 +65,7 @@ func (self *SidewinderDirector) DatastoreInfo(context web.C, writer http.Respons
 		return
 	}
 
-	dataStoreInfo := DatastoreInfo{buildInfo, databases}
+	dataStoreInfo := DatastoreInfo{buildInfo, session.LiveServers(), databases}
 
 	err = json.NewEncoder(writer).Encode(&dataStoreInfo)
 	if err != nil {
