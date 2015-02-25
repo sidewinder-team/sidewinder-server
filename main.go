@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/handlers"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
+	"gopkg.in/mgo.v2"
 )
 
 func hello(context web.C, w http.ResponseWriter, r *http.Request) {
@@ -15,25 +17,54 @@ func hello(context web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	SetupRoutes()
-	goji.Serve()
+	err := SetupRoutes("SidewinderMain")
+	if err == nil {
+		goji.Serve()
+	} else {
+		fmt.Errorf("Error on launch:\n%v", err.Error())
+		os.Exit(1)
+	}
 }
 
-func SetupRoutes() {
+func SetupRoutes(mongoDB string) error {
+	sidewinderDirector, err := NewSidewinderDirector(mongoDB)
+	if err != nil {
+		return err
+	}
+
 	goji.Get("/hello/:name", hello)
-	goji.Get("/store/info", GetDatastoreInfo)
-
+	goji.Get("/store/info", sidewinderDirector.DatastoreInfo)
 	goji.Handle("/devices", handlers.MethodHandler{
-		"POST": http.HandlerFunc(addDevice),
+		"POST": web.HandlerFunc(sidewinderDirector.addDevice),
 	})
+	return nil
 }
 
-func addDevice(writer http.ResponseWriter, request *http.Request) {
+func NewSidewinderDirector(mongoDB string) (*SidewinderDirector, error) {
+	session, err := mgo.Dial("mongo,localhost")
+	if err != nil {
+		return nil, err
+	}
+
+	return &SidewinderDirector{mongoDB, session}, nil
+}
+
+func (self *SidewinderDirector) addDevice(context web.C,
+	writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)
 
-	var sentJSON interface{}
+	var sentJSON map[string]interface{}
 	err := decoder.Decode(&sentJSON)
 	if err != nil {
+		writer.WriteHeader(500)
+		fmt.Fprintln(writer, err.Error())
+	}
+
+	deviceId := sentJSON["DeviceId"]
+	err = self.Store().AddDevice(deviceId.(string))
+
+	if err != nil {
+		writer.WriteHeader(500)
 		fmt.Fprintln(writer, err.Error())
 	}
 
@@ -44,6 +75,7 @@ func addDevice(writer http.ResponseWriter, request *http.Request) {
 
 	err = encoder.Encode(sentJSON)
 	if err != nil {
+		writer.WriteHeader(500)
 		fmt.Fprintln(writer, err.Error())
 	}
 }

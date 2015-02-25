@@ -9,17 +9,46 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+type SidewinderDirector struct {
+	MongoDB string
+	session *mgo.Session
+}
+
+func (self *SidewinderDirector) Store() *SidewinderStore {
+	return &SidewinderStore{self.MongoDB, self.session.Copy()}
+}
+
+type SidewinderStore struct {
+	mongoDB string
+	session *mgo.Session
+}
+
+func (self *SidewinderStore) DB() *mgo.Database {
+	return self.session.DB(self.mongoDB)
+}
+
+func (self *SidewinderStore) Close() {
+	self.session.Close()
+}
+
+type DeviceDocument struct {
+	DeviceId string `_id`
+}
+
+func (self *SidewinderStore) AddDevice(deviceId string) error {
+	document := DeviceDocument{deviceId}
+
+	err := self.DB().C("devices").Insert(document)
+	return err
+}
+
 type DatastoreInfo struct {
 	BuildInfo     mgo.BuildInfo
 	DatabaseNames []string
 }
 
-func GetDatastoreInfo(context web.C, writer http.ResponseWriter, request *http.Request) {
-	session, err := mgo.Dial("mongo")
-	if err != nil {
-		fmt.Fprintf(writer, "Could not connect to MongoDB.\n%v", err.Error())
-		return
-	}
+func (self *SidewinderDirector) DatastoreInfo(context web.C, writer http.ResponseWriter, request *http.Request) {
+	session := self.Store().session
 	buildInfo, err := session.BuildInfo()
 	if err != nil {
 		fmt.Fprintf(writer, "Could not connect to MongoDB.\n%v", err.Error())
