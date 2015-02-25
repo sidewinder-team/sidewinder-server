@@ -37,6 +37,32 @@ func SetupRoutes(mongoDB string) error {
 	goji.Handle("/devices", handlers.MethodHandler{
 		"POST": web.HandlerFunc(sidewinderDirector.addDevice),
 	})
+	goji.Options("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Allow", "DELETE")
+		writer.WriteHeader(200)
+	})
+	goji.Delete("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+		deviceCollection := sidewinderDirector.Store().DB().C("devices")
+		deviceId := context.URLParams["id"]
+
+		var result DeviceDocument
+
+		if err := deviceCollection.FindId(deviceId).One(&result); err != nil {
+			writer.WriteHeader(500)
+			fmt.Fprintln(writer, err.Error())
+			return
+		}
+
+		if err := deviceCollection.RemoveId(deviceId); err != nil {
+			writer.WriteHeader(500)
+			fmt.Fprintln(writer, err.Error())
+			return
+		}
+
+		json.NewEncoder(writer).Encode(result)
+
+	})
 	return nil
 }
 
@@ -49,8 +75,7 @@ func NewSidewinderDirector(mongoDB string) (*SidewinderDirector, error) {
 	return &SidewinderDirector{mongoDB, session}, nil
 }
 
-func (self *SidewinderDirector) addDevice(context web.C,
-	writer http.ResponseWriter, request *http.Request) {
+func (self *SidewinderDirector) addDevice(context web.C, writer http.ResponseWriter, request *http.Request) {
 	decoder := json.NewDecoder(request.Body)
 
 	var sentJSON map[string]interface{}

@@ -19,6 +19,21 @@ const (
 	TestDatabaseName = "SidewinderTest"
 )
 
+func NewPOSTRequestWithJSON(path string, body interface{}) (*http.Request, []byte) {
+	data, err := json.Marshal(body)
+	Expect(err).NotTo(HaveOccurred())
+
+	request, err := http.NewRequest("POST", path, bytes.NewReader(data))
+	Expect(err).NotTo(HaveOccurred())
+	return request, data
+}
+
+func NewRequest(method string, path string) *http.Request {
+	request, err := http.NewRequest(method, path, nil)
+	Expect(err).NotTo(HaveOccurred())
+	return request
+}
+
 var _ = Describe("Endpoint", func() {
 
 	Describe("/devices", func() {
@@ -44,17 +59,11 @@ var _ = Describe("Endpoint", func() {
 			It("is able to successfully add a new device.", func() {
 				responseRecorder := httptest.NewRecorder()
 				deviceInfo := server.DeviceDocument{"abracadabra"}
-				data, err := json.Marshal(deviceInfo)
-				Expect(err).NotTo(HaveOccurred())
 
-				request, err := http.NewRequest("POST", "/devices", bytes.NewReader(data))
-				Expect(err).NotTo(HaveOccurred())
-
+				request, data := NewPOSTRequestWithJSON("/devices", deviceInfo)
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 
 				Expect(responseRecorder.Code).To(Equal(201))
-
-				Expect(responseRecorder.HeaderMap.Get("Content-Type")).To(Equal("application/json"))
 				Expect(responseRecorder.Body.String()).To(MatchJSON(data))
 
 				deviceCollection := db.C("devices")
@@ -74,6 +83,36 @@ var _ = Describe("Endpoint", func() {
 				Expect(responseRecorder.Code).To(Equal(200))
 				Expect(responseRecorder.Body.String()).To(Equal(""))
 				Expect(responseRecorder.Header().Get("Allow")).To(Equal("POST"))
+			})
+		})
+		Describe("/:id", func() {
+			Describe("OPTIONS", func() {
+				It("Lists all the provided functions.", func() {
+					request, err := http.NewRequest("OPTIONS", "/devices/bibitty", nil)
+					Expect(err).NotTo(HaveOccurred())
+
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(200))
+					Expect(responseRecorder.Body.String()).To(Equal(""))
+					Expect(responseRecorder.Header().Get("Allow")).To(Equal("DELETE"))
+				})
+			})
+			Describe("DELETE", func() {
+				It("will delete a previously added device", func() {
+					deviceInfo := server.DeviceDocument{"alakazham"}
+					postRequest, data := NewPOSTRequestWithJSON("/devices", deviceInfo)
+					goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), postRequest)
+
+					recorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(recorder, NewRequest("DELETE", "/devices/alakazham"))
+
+					Expect(recorder.Code).To(Equal(200))
+					Expect(recorder.Body.String()).To(MatchJSON(data))
+
+					deviceCollection := db.C("devices")
+					Expect(deviceCollection.Count()).To(Equal(0))
+				})
 			})
 		})
 	})
