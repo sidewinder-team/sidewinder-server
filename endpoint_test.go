@@ -3,6 +3,7 @@ package main_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 
@@ -56,7 +57,7 @@ var _ = Describe("Endpoint", func() {
 		})
 
 		Describe("POST", func() {
-			It("is able to successfully add a new device.", func() {
+			It("is able to add a new device.", func() {
 				responseRecorder := httptest.NewRecorder()
 				deviceInfo := server.DeviceDocument{"abracadabra"}
 
@@ -70,6 +71,58 @@ var _ = Describe("Endpoint", func() {
 				var result []server.DeviceDocument
 				deviceCollection.FindId(deviceInfo.DeviceId).All(&result)
 				Expect(result).To(Equal([]server.DeviceDocument{deviceInfo}))
+			})
+
+			It("is not able to add a new device when device id is missing.", func() {
+				responseRecorder := httptest.NewRecorder()
+
+				request, _ := NewPOSTRequestWithJSON("/devices", struct{ Nothing string }{"nothing"})
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				fmt.Println(responseRecorder.Body.String())
+				Expect(responseRecorder.Code).To(Equal(400))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+
+				deviceCollection := db.C("devices")
+				Expect(deviceCollection.Count()).To(Equal(0))
+			})
+
+			It("is not able to add a new device when device id is an array.", func() {
+				responseRecorder := httptest.NewRecorder()
+
+				request, _ := NewPOSTRequestWithJSON("/devices", struct{ Nothing []string }{[]string{"nothing"}})
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				fmt.Println(responseRecorder.Body.String())
+				Expect(responseRecorder.Code).To(Equal(400))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+
+				deviceCollection := db.C("devices")
+				Expect(deviceCollection.Count()).To(Equal(0))
+			})
+
+			It("is not able to add a new device when device id is NULL.", func() {
+				responseRecorder := httptest.NewRecorder()
+
+				request, _ := NewPOSTRequestWithJSON("/devices", struct{ Nothing interface{} }{nil})
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				fmt.Println(responseRecorder.Body.String())
+				Expect(responseRecorder.Code).To(Equal(400))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+
+				deviceCollection := db.C("devices")
+				Expect(deviceCollection.Count()).To(Equal(0))
+			})
+
+			It("is not able to add a new device when no JSON is sent.", func() {
+				responseRecorder := httptest.NewRecorder()
+
+				request, _ := NewPOSTRequestWithJSON("/devices", nil)
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				fmt.Println(responseRecorder.Body.String())
+				Expect(responseRecorder.Code).To(Equal(400))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+
+				deviceCollection := db.C("devices")
+				Expect(deviceCollection.Count()).To(Equal(0))
 			})
 		})
 

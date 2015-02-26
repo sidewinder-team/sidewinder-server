@@ -12,6 +12,12 @@ import (
 	"gopkg.in/mgo.v2"
 )
 
+type ErrorJson struct {
+	Error string
+}
+
+var AddDeviceMissingDeviceIdError = ErrorJson{"POST to /device must be a JSON with a DeviceId property."}
+
 func hello(context web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Herro, %s!", context.URLParams["name"])
 }
@@ -35,7 +41,7 @@ func SetupRoutes(mongoDB string) error {
 	goji.Get("/hello/:name", hello)
 	goji.Get("/store/info", sidewinderDirector.DatastoreInfo)
 	goji.Handle("/devices", handlers.MethodHandler{
-		"POST": web.HandlerFunc(sidewinderDirector.addDevice),
+		"POST": catchErr(sidewinderDirector.addDevice),
 	})
 	goji.Options("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Allow", "DELETE")
@@ -75,32 +81,36 @@ func NewSidewinderDirector(mongoDB string) (*SidewinderDirector, error) {
 	return &SidewinderDirector{mongoDB, session}, nil
 }
 
-func (self *SidewinderDirector) addDevice(context web.C, writer http.ResponseWriter, request *http.Request) {
-	decoder := json.NewDecoder(request.Body)
+type Handler func(writer http.ResponseWriter, request *http.Request) error
 
+func catchErr(handler Handler) http.Handler {
+	return web.HandlerFunc(func(context web.C, writer http.ResponseWriter, request *http.Request) {
+		if err := handler(writer, request); err != nil {
+			writer.WriteHeader(500)
+			writeJson(struct{ Error string }{err.Error()}, writer)
+		}
+	})
+}
+
+func (self *SidewinderDirector) addDevice(writer http.ResponseWriter, request *http.Request) error {
 	var sentJSON map[string]interface{}
-	err := decoder.Decode(&sentJSON)
-	if err != nil {
-		writer.WriteHeader(500)
-		fmt.Fprintln(writer, err.Error())
+	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err != nil {
+		return err
 	}
 
-	deviceId := sentJSON["DeviceId"]
-	err = self.Store().AddDevice(deviceId.(string))
-
-	if err != nil {
-		writer.WriteHeader(500)
-		fmt.Fprintln(writer, err.Error())
+	if deviceId, ok := sentJSON["DeviceId"].(string); ok {
+		if err := self.Store().AddDevice(deviceId); err != nil {
+			return err
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.WriteHeader(201)
+		return writeJson(sentJSON, writer)
+	} else {
+		writer.WriteHeader(400)
+		return writeJson(AddDeviceMissingDeviceIdError, writer)
 	}
+}
 
-	encoder := json.NewEncoder(writer)
-
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(201)
-
-	err = encoder.Encode(sentJSON)
-	if err != nil {
-		writer.WriteHeader(500)
-		fmt.Fprintln(writer, err.Error())
-	}
+func writeJson(value interface{}, writer http.ResponseWriter) error {
+	return json.NewEncoder(writer).Encode(value)
 }
