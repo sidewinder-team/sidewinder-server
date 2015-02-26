@@ -90,8 +90,12 @@ func catchErr(handler Handler) http.Handler {
 }
 
 func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *http.Request) error {
-	if sentJSON := decodeDeviceDocument(request); sentJSON != nil {
-		if recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId); err != nil {
+	sentJSON := decodeDeviceDocument(request)
+	if sentJSON == nil {
+		return writeJson(400, AddDeviceMissingDeviceIdError, writer)
+	} else {
+		recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId)
+		if err != nil {
 			return err
 		} else if recordWasCreated {
 			return writeJson(201, sentJSON, writer)
@@ -99,7 +103,6 @@ func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *
 			return writeJson(200, sentJSON, writer)
 		}
 	}
-	return writeJson(400, AddDeviceMissingDeviceIdError, writer)
 }
 
 func decodeDeviceDocument(request *http.Request) *DeviceDocument {
