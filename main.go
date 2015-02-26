@@ -94,21 +94,20 @@ func catchErr(handler Handler) http.Handler {
 
 func (self *SidewinderDirector) addDevice(writer http.ResponseWriter, request *http.Request) error {
 	var sentJSON map[string]interface{}
-	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err != nil {
-		return err
+	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err == nil {
+		if deviceId, ok := sentJSON["DeviceId"].(string); ok {
+			if err := self.Store().AddDevice(deviceId); err == nil {
+				writer.Header().Set("Content-Type", "application/json")
+				writer.WriteHeader(201)
+				return writeJson(sentJSON, writer)
+			} else {
+				return err
+			}
+		}
 	}
 
-	if deviceId, ok := sentJSON["DeviceId"].(string); ok {
-		if err := self.Store().AddDevice(deviceId); err != nil {
-			return err
-		}
-		writer.Header().Set("Content-Type", "application/json")
-		writer.WriteHeader(201)
-		return writeJson(sentJSON, writer)
-	} else {
-		writer.WriteHeader(400)
-		return writeJson(AddDeviceMissingDeviceIdError, writer)
-	}
+	writer.WriteHeader(400)
+	return writeJson(AddDeviceMissingDeviceIdError, writer)
 }
 
 func writeJson(value interface{}, writer http.ResponseWriter) error {

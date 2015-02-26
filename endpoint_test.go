@@ -3,7 +3,6 @@ package main_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 
@@ -78,7 +77,7 @@ var _ = Describe("Endpoint", func() {
 
 				request, _ := NewPOSTRequestWithJSON("/devices", struct{ Nothing string }{"nothing"})
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
-				fmt.Println(responseRecorder.Body.String())
+
 				Expect(responseRecorder.Code).To(Equal(400))
 				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
 
@@ -91,7 +90,7 @@ var _ = Describe("Endpoint", func() {
 
 				request, _ := NewPOSTRequestWithJSON("/devices", struct{ Nothing []string }{[]string{"nothing"}})
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
-				fmt.Println(responseRecorder.Body.String())
+
 				Expect(responseRecorder.Code).To(Equal(400))
 				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
 
@@ -104,7 +103,7 @@ var _ = Describe("Endpoint", func() {
 
 				request, _ := NewPOSTRequestWithJSON("/devices", struct{ Nothing interface{} }{nil})
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
-				fmt.Println(responseRecorder.Body.String())
+
 				Expect(responseRecorder.Code).To(Equal(400))
 				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
 
@@ -117,7 +116,20 @@ var _ = Describe("Endpoint", func() {
 
 				request, _ := NewPOSTRequestWithJSON("/devices", nil)
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
-				fmt.Println(responseRecorder.Body.String())
+
+				Expect(responseRecorder.Code).To(Equal(400))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+
+				deviceCollection := db.C("devices")
+				Expect(deviceCollection.Count()).To(Equal(0))
+			})
+
+			It("is not able to add a new device when body is not JSON.", func() {
+				responseRecorder := httptest.NewRecorder()
+
+				request, _ := NewPOSTRequestWithJSON("/devices", "roguishly devilish raw text")
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+
 				Expect(responseRecorder.Code).To(Equal(400))
 				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
 
