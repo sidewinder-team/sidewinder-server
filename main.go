@@ -91,18 +91,15 @@ func catchErr(handler Handler) http.Handler {
 
 func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *http.Request) error {
 	var sentJSON DeviceDocument
-	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err == nil && sentJSON.DeviceId != "" {
-		if recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId); err == nil {
-			code := 200
-			if recordWasCreated {
-				code = 201
-			}
-			return writeJson(code, sentJSON, writer)
-		} else {
+	if decodeErr := json.NewDecoder(request.Body).Decode(&sentJSON); decodeErr == nil && sentJSON.DeviceId != "" {
+		if recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId); err != nil {
 			return err
+		} else if recordWasCreated {
+			return writeJson(201, sentJSON, writer)
+		} else {
+			return writeJson(200, sentJSON, writer)
 		}
 	}
-
 	return writeJson(400, AddDeviceMissingDeviceIdError, writer)
 }
 
