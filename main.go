@@ -48,7 +48,6 @@ func SetupRoutes(mongoDB string) error {
 		writer.WriteHeader(200)
 	})
 	goji.Delete("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
 		deviceCollection := sidewinderDirector.Store().DB().C("devices")
 		deviceId := context.URLParams["id"]
 
@@ -66,8 +65,7 @@ func SetupRoutes(mongoDB string) error {
 			return
 		}
 
-		json.NewEncoder(writer).Encode(result)
-
+		writeJson(200, result, writer)
 	})
 	return nil
 }
@@ -86,8 +84,7 @@ type Handler func(writer http.ResponseWriter, request *http.Request) error
 func catchErr(handler Handler) http.Handler {
 	return web.HandlerFunc(func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		if err := handler(writer, request); err != nil {
-			writer.WriteHeader(500)
-			writeJson(struct{ Error string }{err.Error()}, writer)
+			writeJson(500, ErrorJson{err.Error()}, writer)
 		}
 	})
 }
@@ -96,23 +93,21 @@ func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *
 	var sentJSON DeviceDocument
 	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err == nil && sentJSON.DeviceId != "" {
 		if recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId); err == nil {
-			writer.Header().Set("Content-Type", "application/json")
-
+			code := 200
 			if recordWasCreated {
-				writer.WriteHeader(201)
-			} else {
-				writer.WriteHeader(200)
+				code = 201
 			}
-			return writeJson(sentJSON, writer)
+			return writeJson(code, sentJSON, writer)
 		} else {
 			return err
 		}
 	}
 
-	writer.WriteHeader(400)
-	return writeJson(AddDeviceMissingDeviceIdError, writer)
+	return writeJson(400, AddDeviceMissingDeviceIdError, writer)
 }
 
-func writeJson(value interface{}, writer http.ResponseWriter) error {
+func writeJson(code int, value interface{}, writer http.ResponseWriter) error {
+	writer.WriteHeader(code)
+	writer.Header().Set("Content-Type", "application/json")
 	return json.NewEncoder(writer).Encode(value)
 }
