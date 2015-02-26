@@ -72,6 +72,25 @@ var _ = Describe("Endpoint", func() {
 				Expect(result).To(Equal([]server.DeviceDocument{deviceInfo}))
 			})
 
+			It("can be called twice and will return a 200 the second time.", func() {
+				deviceInfo := server.DeviceDocument{"abracadabra"}
+
+				request, _ := NewPOSTRequestWithJSON("/devices", deviceInfo)
+				goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
+
+				request, data := NewPOSTRequestWithJSON("/devices", deviceInfo)
+				responseRecorder := httptest.NewRecorder()
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+
+				Expect(responseRecorder.Code).To(Equal(200))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(data))
+
+				deviceCollection := db.C("devices")
+				var result []server.DeviceDocument
+				deviceCollection.FindId(deviceInfo.DeviceId).All(&result)
+				Expect(result).To(Equal([]server.DeviceDocument{deviceInfo}))
+			})
+
 			It("is not able to add a new device when device id is missing.", func() {
 				responseRecorder := httptest.NewRecorder()
 

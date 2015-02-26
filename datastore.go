@@ -35,11 +35,18 @@ type DeviceDocument struct {
 	DeviceId string `_id`
 }
 
-func (self *SidewinderStore) AddDevice(deviceId string) error {
+func (self *SidewinderStore) AddDevice(deviceId string) (bool, error) {
 	document := DeviceDocument{deviceId}
 
-	err := self.DB().C("devices").Insert(document)
-	return err
+	info, err := self.DB().C("devices").UpsertId(deviceId, document)
+	switch {
+	case err != nil:
+		return false, err
+	case info.Updated > 0:
+		return false, nil
+	default:
+		return true, nil
+	}
 }
 
 type DatastoreInfo struct {

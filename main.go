@@ -41,7 +41,7 @@ func SetupRoutes(mongoDB string) error {
 	goji.Get("/hello/:name", hello)
 	goji.Get("/store/info", sidewinderDirector.DatastoreInfo)
 	goji.Handle("/devices", handlers.MethodHandler{
-		"POST": catchErr(sidewinderDirector.addDevice),
+		"POST": catchErr(sidewinderDirector.postDevice),
 	})
 	goji.Options("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Allow", "DELETE")
@@ -92,17 +92,20 @@ func catchErr(handler Handler) http.Handler {
 	})
 }
 
-func (self *SidewinderDirector) addDevice(writer http.ResponseWriter, request *http.Request) error {
-	var sentJSON map[string]interface{}
-	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err == nil {
-		if deviceId, ok := sentJSON["DeviceId"].(string); ok {
-			if err := self.Store().AddDevice(deviceId); err == nil {
-				writer.Header().Set("Content-Type", "application/json")
+func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *http.Request) error {
+	var sentJSON DeviceDocument
+	if err := json.NewDecoder(request.Body).Decode(&sentJSON); err == nil && sentJSON.DeviceId != "" {
+		if recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId); err == nil {
+			writer.Header().Set("Content-Type", "application/json")
+
+			if recordWasCreated {
 				writer.WriteHeader(201)
-				return writeJson(sentJSON, writer)
 			} else {
-				return err
+				writer.WriteHeader(200)
 			}
+			return writeJson(sentJSON, writer)
+		} else {
+			return err
 		}
 	}
 
