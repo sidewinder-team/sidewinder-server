@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
-	"github.com/gorilla/handlers"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
-	"github.com/zenazn/goji/web/middleware"
 )
 
 type ErrorJson struct {
@@ -32,6 +31,54 @@ func main() {
 	}
 }
 
+type RestMux struct {
+	Mux     *web.Mux
+	pattern string
+}
+
+func NewRestMux(mux *web.Mux, pattern string) *RestMux {
+	return &RestMux{mux, pattern}
+}
+
+func (self *RestMux) Use(handler *RestHandler) {
+	var methods []string
+	if handler.Get != nil {
+		self.Mux.Get(self.pattern, handler.Get)
+		methods = append(methods, "GET")
+	}
+	if handler.Post != nil {
+		self.Mux.Post(self.pattern, handler.Post)
+		methods = append(methods, "POST")
+	}
+	if handler.Put != nil {
+		self.Mux.Put(self.pattern, handler.Put)
+		methods = append(methods, "PUT")
+	}
+	if handler.Delete != nil {
+		methods = append(methods, "DELETE")
+		self.Mux.Delete(self.pattern, handler.Delete)
+	}
+	if len(methods) > 0 {
+		self.Mux.Options(self.pattern, func(context web.C, writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("Allow", strings.Join(methods, ","))
+		})
+	}
+}
+
+func (self *RestMux) Handle(pattern string, handler *RestHandler) *RestMux {
+	newRestMux := NewRestMux(self.Mux, self.pattern+pattern)
+	newRestMux.Use(handler)
+	return newRestMux
+}
+
+type RestHandler struct {
+	Get     web.HandlerType
+	Put     web.HandlerType
+	Post    web.HandlerType
+	Delete  web.HandlerType
+	Options web.HandlerType
+}
+
 func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 	sidewinderDirector, err := NewSidewinderDirector(mongoDB)
 	if err != nil {
@@ -40,43 +87,24 @@ func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 
 	goji.Get("/hello/:name", hello)
 	goji.Get("/store/info", sidewinderDirector.DatastoreInfo)
-	goji.Handle("/devices", handlers.MethodHandler{
-		"POST": catchErr(sidewinderDirector.postDevice),
+
+	deviceListMux := NewRestMux(goji.DefaultMux, "/devices")
+
+	deviceListMux.Use(&RestHandler{
+		Post: catchErr(sidewinderDirector.postDevice),
 	})
-
-	goji.Options("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Allow", "DELETE")
-		writer.WriteHeader(200)
-	})
-	goji.Delete("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		deviceCollection := sidewinderDirector.Store().DB().C("devices")
-		deviceId := context.URLParams["id"]
-
-		var result DeviceDocument
-		if err := deviceCollection.FindId(deviceId).One(&result); err != nil {
-			writer.WriteHeader(500)
-			fmt.Fprintln(writer, err.Error())
-			return
-		}
-
-		if err := deviceCollection.RemoveId(deviceId); err != nil {
-			writer.WriteHeader(500)
-			fmt.Fprintln(writer, err.Error())
-			return
-		}
-
-		writeJson(200, result, writer)
-	})
-
-	goji.Handle("/devices/:id/*", deviceMux(apnsComs))
+	deviceMux := deviceListMux.Handle("/:id",
+		&RestHandler{
+			Delete: sidewinderDirector.deleteDevice,
+		})
+	deviceMux.Handle("/notifications", NotificationHandler(deviceMux, apnsComs))
 
 	return nil
 }
 
-func deviceMux(apnsComs *APNSCommunicator) web.Handler {
-	mux := web.New()
-	mux.Use(middleware.SubRouter)
-	mux.Post("/notifications", func(context web.C, writer http.ResponseWriter, request *http.Request) {
+func NotificationHandler(deviceMux *RestMux, apnsComs *APNSCommunicator) *RestHandler {
+	handler := &RestHandler{}
+	handler.Post = func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		deviceId := context.URLParams["id"]
 
 		var notification map[string]string
@@ -87,13 +115,13 @@ func deviceMux(apnsComs *APNSCommunicator) web.Handler {
 				writeJson(500, ErrorJson{err.Error()}, writer)
 			}
 		}
-	})
-
-	mux.Options("/notifications", func(context web.C, writer http.ResponseWriter, request *http.Request) {
+	}
+	handler.Options = func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Allow", "POST")
 		writer.WriteHeader(200)
-	})
-	return mux
+	}
+
+	return handler
 }
 
 type Handler func(writer http.ResponseWriter, request *http.Request) error
@@ -120,6 +148,26 @@ func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *
 			return writeJson(200, sentJSON, writer)
 		}
 	}
+}
+
+func (self *SidewinderDirector) deleteDevice(context web.C, writer http.ResponseWriter, request *http.Request) {
+	deviceCollection := self.Store().DB().C("devices")
+	deviceId := context.URLParams["id"]
+
+	var result DeviceDocument
+	if err := deviceCollection.FindId(deviceId).One(&result); err != nil {
+		writer.WriteHeader(500)
+		fmt.Fprintln(writer, err.Error())
+		return
+	}
+
+	if err := deviceCollection.RemoveId(deviceId); err != nil {
+		writer.WriteHeader(500)
+		fmt.Fprintln(writer, err.Error())
+		return
+	}
+
+	writeJson(200, result, writer)
 }
 
 func decodeDeviceDocument(request *http.Request) *DeviceDocument {
