@@ -3,6 +3,7 @@ package main_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 
@@ -245,20 +246,36 @@ var _ = Describe("Endpoint", func() {
 				})
 
 				Describe("POST", func() {
-					It("will send notification.", func() {
-						message := struct{ Alert string }{"Something important!"}
-						request, data := NewPOSTRequestWithJSON("/devices/token/notifications", message)
+					Describe("when sent a notification", func() {
+						It("and can forward it to Apple it will respond success", func() {
+							message := struct{ Alert string }{"Something important!"}
+							request, data := NewPOSTRequestWithJSON("/devices/token/notifications", message)
 
-						apnsClient.Response = apns.NewPushNotificationResponse()
+							apnsClient.Response = apns.NewPushNotificationResponse()
 
-						responseRecorder := httptest.NewRecorder()
-						goji.DefaultMux.ServeHTTP(responseRecorder, request)
-						Expect(responseRecorder.Code).To(Equal(201))
-						Expect(responseRecorder.Body.String()).To(MatchJSON(data))
-						Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-						Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal("token"))
-						expectedPayload := `{"aps" : {"alert":"Something important!", "badge" : 1}}`
-						Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
+							responseRecorder := httptest.NewRecorder()
+							goji.DefaultMux.ServeHTTP(responseRecorder, request)
+							Expect(responseRecorder.Code).To(Equal(201))
+							Expect(responseRecorder.Body.String()).To(MatchJSON(data))
+							Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
+							Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal("token"))
+							expectedPayload := `{"aps" : {"alert":"Something important!", "badge" : 1}}`
+							Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
+						})
+
+						It("and can not forward it to Apple it will respond error", func() {
+							message := struct{ Alert string }{"Something important!"}
+							request, _ := NewPOSTRequestWithJSON("/devices/token/notifications", message)
+
+							apnsClient.Response = apns.NewPushNotificationResponse()
+							apnsClient.Response.Error = errors.New("Oh no!")
+
+							responseRecorder := httptest.NewRecorder()
+							goji.DefaultMux.ServeHTTP(responseRecorder, request)
+							expectedError := `{"Error" : "Oh no!"}`
+							Expect(responseRecorder.Code).To(Equal(500))
+							Expect(responseRecorder.Body.String()).To(MatchJSON(expectedError))
+						})
 					})
 				})
 			})

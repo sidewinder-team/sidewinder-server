@@ -81,8 +81,11 @@ func deviceMux(apnsComs *APNSCommunicator) web.Handler {
 
 		var notification map[string]string
 		if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr == nil {
-			apnsComs.sendPushNotification(deviceId, notification["Alert"])
-			writeJson(201, notification, writer)
+			if err := apnsComs.sendPushNotification(deviceId, notification["Alert"]); err == nil {
+				writeJson(201, notification, writer)
+			} else {
+				writeJson(500, ErrorJson{err.Error()}, writer)
+			}
 		}
 	})
 
