@@ -36,11 +36,11 @@ type RestMux struct {
 	pattern string
 }
 
-func NewRestMux(mux *web.Mux, pattern string) *RestMux {
+func NewRestMux(pattern string, mux *web.Mux) *RestMux {
 	return &RestMux{mux, pattern}
 }
 
-func (self *RestMux) Use(handler *RestHandler) {
+func (self *RestMux) Use(handler *RestHandler) *RestMux {
 	var methods []string
 	if handler.Get != nil {
 		self.Mux.Get(self.pattern, handler.Get)
@@ -63,10 +63,11 @@ func (self *RestMux) Use(handler *RestHandler) {
 			writer.Header().Set("Allow", strings.Join(methods, ","))
 		})
 	}
+	return self
 }
 
 func (self *RestMux) Handle(pattern string, handler *RestHandler) *RestMux {
-	newRestMux := NewRestMux(self.Mux, self.pattern+pattern)
+	newRestMux := NewRestMux(self.pattern+pattern, self.Mux)
 	newRestMux.Use(handler)
 	return newRestMux
 }
@@ -88,21 +89,16 @@ func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 	goji.Get("/hello/:name", hello)
 	goji.Get("/store/info", sidewinderDirector.DatastoreInfo)
 
-	deviceListMux := NewRestMux(goji.DefaultMux, "/devices")
-
-	deviceListMux.Use(&RestHandler{
+	NewRestMux("/devices", goji.DefaultMux).Use(&RestHandler{
 		Post: catchErr(sidewinderDirector.postDevice),
-	})
-	deviceMux := deviceListMux.Handle("/:id",
-		&RestHandler{
-			Delete: sidewinderDirector.deleteDevice,
-		})
-	deviceMux.Handle("/notifications", NotificationHandler(deviceMux, apnsComs))
+	}).Handle("/:id", &RestHandler{
+		Delete: sidewinderDirector.deleteDevice,
+	}).Handle("/notifications", NotificationHandler(apnsComs))
 
 	return nil
 }
 
-func NotificationHandler(deviceMux *RestMux, apnsComs *APNSCommunicator) *RestHandler {
+func NotificationHandler(apnsComs *APNSCommunicator) *RestHandler {
 	handler := &RestHandler{}
 	handler.Post = func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		deviceId := context.URLParams["id"]
