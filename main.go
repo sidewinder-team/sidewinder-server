@@ -73,11 +73,10 @@ func (self *RestMux) Handle(pattern string, handler *RestHandler) *RestMux {
 }
 
 type RestHandler struct {
-	Get     web.HandlerType
-	Put     web.HandlerType
-	Post    web.HandlerType
-	Delete  web.HandlerType
-	Options web.HandlerType
+	Get    web.HandlerType
+	Put    web.HandlerType
+	Post   web.HandlerType
+	Delete web.HandlerType
 }
 
 func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
@@ -93,44 +92,41 @@ func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 		Post: catchErr(sidewinderDirector.postDevice),
 	}).Handle("/:id", &RestHandler{
 		Delete: sidewinderDirector.deleteDevice,
-	}).Handle("/notifications", NotificationHandler(apnsComs))
+	}).Handle("/notifications", &RestHandler{
+		Post: catchErr(PostNotification(apnsComs)),
+	})
 
 	return nil
 }
 
-func NotificationHandler(apnsComs *APNSCommunicator) *RestHandler {
-	handler := &RestHandler{}
-	handler.Post = func(context web.C, writer http.ResponseWriter, request *http.Request) {
+func PostNotification(apnsComs *APNSCommunicator) Handler {
+	return func(context web.C, writer http.ResponseWriter, request *http.Request) error {
 		deviceId := context.URLParams["id"]
 
 		var notification map[string]string
-		if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr == nil {
-			if err := apnsComs.sendPushNotification(deviceId, notification["Alert"]); err == nil {
-				writeJson(201, notification, writer)
-			} else {
-				writeJson(500, ErrorJson{err.Error()}, writer)
-			}
+		if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
+			return decodeErr
 		}
-	}
-	handler.Options = func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Allow", "POST")
-		writer.WriteHeader(200)
-	}
 
-	return handler
+		if err := apnsComs.sendPushNotification(deviceId, notification["Alert"]); err != nil {
+			return err
+		}
+		writeJson(201, notification, writer)
+		return nil
+	}
 }
 
-type Handler func(writer http.ResponseWriter, request *http.Request) error
+type Handler func(context web.C, writer http.ResponseWriter, request *http.Request) error
 
-func catchErr(handler Handler) http.Handler {
+func catchErr(handler Handler) web.HandlerType {
 	return web.HandlerFunc(func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		if err := handler(writer, request); err != nil {
+		if err := handler(context, writer, request); err != nil {
 			writeJson(500, ErrorJson{err.Error()}, writer)
 		}
 	})
 }
 
-func (self *SidewinderDirector) postDevice(writer http.ResponseWriter, request *http.Request) error {
+func (self *SidewinderDirector) postDevice(context web.C, writer http.ResponseWriter, request *http.Request) error {
 	sentJSON := decodeDeviceDocument(request)
 	if sentJSON == nil {
 		return writeJson(400, AddDeviceMissingDeviceIdError, writer)
