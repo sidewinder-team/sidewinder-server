@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/anachronistic/apns"
 	server "github.com/sidewinder-team/sidewinder-server"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
@@ -34,14 +35,43 @@ func NewRequest(method string, path string) *http.Request {
 	return request
 }
 
+type ApnsMockClient struct {
+	Response          *apns.PushNotificationResponse
+	NotificationsSent []*apns.PushNotification
+}
+
+func (self *ApnsMockClient) ConnectAndWrite(response *apns.PushNotificationResponse, payload []byte) error {
+	return nil
+}
+
+// func (self *ApnsMockClient) ConnectAndWrite(response *apns.PushNotificationResponse, payload []byte) error {
+// 	return (*apns.MockClient)(self).ConnectAndWrite(response, payload)
+// }
+
+// func (self *ApnsMockClient) OnConnectAndWrite(response *apns.PushNotificationResponse, payload []byte, returnErr error) {
+// 	self.On("ConnectAndWrite", response, payload).Return(returnErr)
+// }
+
+func (self *ApnsMockClient) Send(pushNotification *apns.PushNotification) *apns.PushNotificationResponse {
+	self.NotificationsSent = append(self.NotificationsSent, pushNotification)
+	return self.Response
+}
+
+// func (self *ApnsMockClient) OnSend(pushNotification *apns.PushNotification, thenReturn *apns.PushNotificationResponse) {
+// 	self.On("Send", pushNotification).Return(thenReturn)
+// }
+
 var _ = Describe("Endpoint", func() {
 
 	Describe("/devices", func() {
 
 		var db *mgo.Database
+		apnsClient := &ApnsMockClient{}
 
 		BeforeEach(func() {
-			server.SetupRoutes(TestDatabaseName)
+			server.SetupRoutes(TestDatabaseName, &server.APNSCommunicator{func() apns.APNSClient {
+				return apnsClient
+			}})
 
 			session, err := mgo.Dial("mongo,localhost")
 			Expect(err).NotTo(HaveOccurred())
@@ -219,10 +249,16 @@ var _ = Describe("Endpoint", func() {
 						message := struct{ Alert string }{"Something important!"}
 						request, data := NewPOSTRequestWithJSON("/devices/token/notifications", message)
 
+						apnsClient.Response = apns.NewPushNotificationResponse()
+
 						responseRecorder := httptest.NewRecorder()
 						goji.DefaultMux.ServeHTTP(responseRecorder, request)
 						Expect(responseRecorder.Code).To(Equal(201))
 						Expect(responseRecorder.Body.String()).To(MatchJSON(data))
+						Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
+						Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal("token"))
+						expectedPayload := `{"aps" : {"alert":"Something important!", "badge" : 1}}`
+						Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					})
 				})
 			})

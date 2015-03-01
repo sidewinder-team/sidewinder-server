@@ -23,7 +23,7 @@ func hello(context web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	err := SetupRoutes("SidewinderMain")
+	err := SetupRoutes("SidewinderMain", NewAPNSCommunicator())
 	if err == nil {
 		goji.Serve()
 	} else {
@@ -32,7 +32,7 @@ func main() {
 	}
 }
 
-func SetupRoutes(mongoDB string) error {
+func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 	sidewinderDirector, err := NewSidewinderDirector(mongoDB)
 	if err != nil {
 		return err
@@ -68,17 +68,20 @@ func SetupRoutes(mongoDB string) error {
 		writeJson(200, result, writer)
 	})
 
-	goji.Handle("/devices/:id/*", deviceMux())
+	goji.Handle("/devices/:id/*", deviceMux(apnsComs))
 
 	return nil
 }
 
-func deviceMux() web.Handler {
+func deviceMux(apnsComs *APNSCommunicator) web.Handler {
 	mux := web.New()
 	mux.Use(middleware.SubRouter)
 	mux.Post("/notifications", func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		var notification interface{}
+		deviceId := context.URLParams["id"]
+
+		var notification map[string]string
 		if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr == nil {
+			apnsComs.sendPushNotification(deviceId, notification["Alert"])
 			writeJson(201, notification, writer)
 		}
 	})

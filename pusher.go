@@ -5,6 +5,7 @@ import "github.com/anachronistic/apns"
 func (self *APNSCommunicator) sendPushNotification(deviceToken, alert string) error {
 	payload := apns.NewPayload()
 	payload.Alert = alert
+	payload.Badge = 1
 
 	pushNotification := apns.NewPushNotification()
 	pushNotification.DeviceToken = deviceToken
