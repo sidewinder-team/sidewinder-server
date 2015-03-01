@@ -45,22 +45,10 @@ func (self *ApnsMockClient) ConnectAndWrite(response *apns.PushNotificationRespo
 	return nil
 }
 
-// func (self *ApnsMockClient) ConnectAndWrite(response *apns.PushNotificationResponse, payload []byte) error {
-// 	return (*apns.MockClient)(self).ConnectAndWrite(response, payload)
-// }
-
-// func (self *ApnsMockClient) OnConnectAndWrite(response *apns.PushNotificationResponse, payload []byte, returnErr error) {
-// 	self.On("ConnectAndWrite", response, payload).Return(returnErr)
-// }
-
 func (self *ApnsMockClient) Send(pushNotification *apns.PushNotification) *apns.PushNotificationResponse {
 	self.NotificationsSent = append(self.NotificationsSent, pushNotification)
 	return self.Response
 }
-
-// func (self *ApnsMockClient) OnSend(pushNotification *apns.PushNotification, thenReturn *apns.PushNotificationResponse) {
-// 	self.On("Send", pushNotification).Return(thenReturn)
-// }
 
 var _ = Describe("Endpoint", func() {
 
