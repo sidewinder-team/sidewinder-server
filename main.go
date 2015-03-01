@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
+	"github.com/zenazn/goji/web/middleware"
 )
 
 type ErrorJson struct {
@@ -42,6 +43,7 @@ func SetupRoutes(mongoDB string) error {
 	goji.Handle("/devices", handlers.MethodHandler{
 		"POST": catchErr(sidewinderDirector.postDevice),
 	})
+
 	goji.Options("/devices/:id", func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Allow", "DELETE")
 		writer.WriteHeader(200)
@@ -65,7 +67,27 @@ func SetupRoutes(mongoDB string) error {
 
 		writeJson(200, result, writer)
 	})
+
+	goji.Handle("/devices/:id/*", deviceMux())
+
 	return nil
+}
+
+func deviceMux() web.Handler {
+	mux := web.New()
+	mux.Use(middleware.SubRouter)
+	mux.Post("/notifications", func(context web.C, writer http.ResponseWriter, request *http.Request) {
+		var notification interface{}
+		if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr == nil {
+			writeJson(201, notification, writer)
+		}
+	})
+
+	mux.Options("/notifications", func(context web.C, writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Allow", "POST")
+		writer.WriteHeader(200)
+	})
+	return mux
 }
 
 type Handler func(writer http.ResponseWriter, request *http.Request) error

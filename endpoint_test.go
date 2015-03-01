@@ -182,6 +182,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Header().Get("Allow")).To(Equal("DELETE"))
 				})
 			})
+
 			Describe("DELETE", func() {
 				It("will delete a previously added device", func() {
 					deviceInfo := server.DeviceDocument{"alakazham"}
@@ -196,6 +197,33 @@ var _ = Describe("Endpoint", func() {
 
 					deviceCollection := db.C("devices")
 					Expect(deviceCollection.Count()).To(Equal(0))
+				})
+			})
+
+			Describe("/notifications", func() {
+				Describe("OPTIONS", func() {
+					It("Lists all the provided functions.", func() {
+						request, err := http.NewRequest("OPTIONS", "/devices/token/notifications", nil)
+						Expect(err).NotTo(HaveOccurred())
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(200))
+						Expect(responseRecorder.Body.String()).To(Equal(""))
+						Expect(responseRecorder.Header().Get("Allow")).To(Equal("POST"))
+					})
+				})
+
+				Describe("POST", func() {
+					It("will send notification.", func() {
+						message := struct{ Alert string }{"Something important!"}
+						request, data := NewPOSTRequestWithJSON("/devices/token/notifications", message)
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(201))
+						Expect(responseRecorder.Body.String()).To(MatchJSON(data))
+					})
 				})
 			})
 		})
