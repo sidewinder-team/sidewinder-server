@@ -14,6 +14,14 @@ type SidewinderDirector struct {
 	session *mgo.Session
 }
 
+func NewSidewinderDirector(mongoDB string) (*SidewinderDirector, error) {
+	session, err := mgo.Dial("mongo,localhost")
+	if err != nil {
+		return nil, err
+	}
+	return &SidewinderDirector{mongoDB, session}, nil
+}
+
 func (self *SidewinderDirector) Store() *SidewinderStore {
 	return &SidewinderStore{self.MongoDB, self.session.Copy()}
 }
@@ -37,7 +45,6 @@ type DeviceDocument struct {
 
 func (self *SidewinderStore) AddDevice(deviceId string) (bool, error) {
 	document := DeviceDocument{deviceId}
-
 	info, err := self.DB().C("devices").UpsertId(deviceId, document)
 	switch {
 	case err != nil:

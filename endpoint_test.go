@@ -98,7 +98,7 @@ var _ = Describe("Endpoint", func() {
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 
 				Expect(responseRecorder.Code).To(Equal(400))
-				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /devices must be a JSON with a DeviceId property."}`))
 
 				deviceCollection := db.C("devices")
 				Expect(deviceCollection.Count()).To(Equal(0))
@@ -111,7 +111,7 @@ var _ = Describe("Endpoint", func() {
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 
 				Expect(responseRecorder.Code).To(Equal(400))
-				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /devices must be a JSON with a DeviceId property."}`))
 
 				deviceCollection := db.C("devices")
 				Expect(deviceCollection.Count()).To(Equal(0))
@@ -124,7 +124,7 @@ var _ = Describe("Endpoint", func() {
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 
 				Expect(responseRecorder.Code).To(Equal(400))
-				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /devices must be a JSON with a DeviceId property."}`))
 
 				deviceCollection := db.C("devices")
 				Expect(deviceCollection.Count()).To(Equal(0))
@@ -137,7 +137,7 @@ var _ = Describe("Endpoint", func() {
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 
 				Expect(responseRecorder.Code).To(Equal(400))
-				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /devices must be a JSON with a DeviceId property."}`))
 
 				deviceCollection := db.C("devices")
 				Expect(deviceCollection.Count()).To(Equal(0))
@@ -150,7 +150,7 @@ var _ = Describe("Endpoint", func() {
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 
 				Expect(responseRecorder.Code).To(Equal(400))
-				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /device must be a JSON with a DeviceId property."}`))
+				Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"POST to /devices must be a JSON with a DeviceId property."}`))
 
 				deviceCollection := db.C("devices")
 				Expect(deviceCollection.Count()).To(Equal(0))

@@ -9,14 +9,13 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
-	"gopkg.in/mgo.v2"
 )
 
 type ErrorJson struct {
 	Error string
 }
 
-var AddDeviceMissingDeviceIdError = ErrorJson{"POST to /device must be a JSON with a DeviceId property."}
+var AddDeviceMissingDeviceIdError = ErrorJson{"POST to /devices must be a JSON with a DeviceId property."}
 
 func hello(context web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Herro, %s!", context.URLParams["name"])
@@ -52,7 +51,6 @@ func SetupRoutes(mongoDB string) error {
 		deviceId := context.URLParams["id"]
 
 		var result DeviceDocument
-
 		if err := deviceCollection.FindId(deviceId).One(&result); err != nil {
 			writer.WriteHeader(500)
 			fmt.Fprintln(writer, err.Error())
@@ -68,15 +66,6 @@ func SetupRoutes(mongoDB string) error {
 		writeJson(200, result, writer)
 	})
 	return nil
-}
-
-func NewSidewinderDirector(mongoDB string) (*SidewinderDirector, error) {
-	session, err := mgo.Dial("mongo,localhost")
-	if err != nil {
-		return nil, err
-	}
-
-	return &SidewinderDirector{mongoDB, session}, nil
 }
 
 type Handler func(writer http.ResponseWriter, request *http.Request) error
