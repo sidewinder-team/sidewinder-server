@@ -29,44 +29,37 @@ func (self *SidewinderDirector) Store() *SidewinderStore {
 	return &SidewinderStore{self.MongoDB, self.session.Copy()}
 }
 
-func (self *SidewinderDirector) DatastoreInfo(context web.C, writer http.ResponseWriter, request *http.Request) {
+func (self *SidewinderDirector) DatastoreInfo(context web.C, writer http.ResponseWriter, request *http.Request) error {
 	session := self.Store().session
 
 	buildInfo, err := session.BuildInfo()
 	if err != nil {
-		fmt.Fprintf(writer, "Could not connect to MongoDB.\n%v", err.Error())
-		return
+		return fmt.Errorf("Could not connect to MongoDB.\n%v", err.Error())
 	}
 	writer.Header().Set("Content-Type", "application/json")
 
 	databases, err := session.DatabaseNames()
 	if err != nil {
-		fmt.Fprintf(writer, "Could not retrieve database names.\n%v", err.Error())
-		return
+		return fmt.Errorf("Could not retrieve database names.\n%v", err.Error())
 	}
 
 	dataStoreInfo := DatastoreInfo{buildInfo, session.LiveServers(), databases}
 
-	err = json.NewEncoder(writer).Encode(&dataStoreInfo)
-	if err != nil {
-		fmt.Fprintf(writer, "Could not return info from MongoDB.\n%v", err.Error())
-		return
-	}
+	return json.NewEncoder(writer).Encode(&dataStoreInfo)
 }
 
 func (self *SidewinderDirector) postDevice(context web.C, writer http.ResponseWriter, request *http.Request) error {
 	sentJSON := decodeDeviceDocument(request)
 	if sentJSON == nil {
 		return writeJson(400, AddDeviceMissingDeviceIdError, writer)
+	}
+	recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId)
+	if err != nil {
+		return err
+	} else if recordWasCreated {
+		return writeJson(201, sentJSON, writer)
 	} else {
-		recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId)
-		if err != nil {
-			return err
-		} else if recordWasCreated {
-			return writeJson(201, sentJSON, writer)
-		} else {
-			return writeJson(200, sentJSON, writer)
-		}
+		return writeJson(200, sentJSON, writer)
 	}
 }
 
@@ -81,13 +74,11 @@ func decodeDeviceDocument(request *http.Request) *DeviceDocument {
 
 type DeviceHandler func(id string, writer http.ResponseWriter, request *http.Request) error
 
-func NewDeviceHandler(deviceHandler DeviceHandler) web.HandlerFunc {
-	return func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		deviceId := context.URLParams["id"]
-		err := deviceHandler(deviceId, writer, request)
-		if err != nil {
-			writeJson(500, ErrorJson{err.Error()}, writer)
-		}
+func (self DeviceHandler) ServeHTTPC(context web.C, writer http.ResponseWriter, request *http.Request) {
+	deviceId := context.URLParams["id"]
+	err := self(deviceId, writer, request)
+	if err != nil {
+		writeJson(500, ErrorJson{err.Error()}, writer)
 	}
 }
 

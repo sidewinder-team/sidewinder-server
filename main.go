@@ -35,14 +35,14 @@ func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 	}
 
 	goji.Get("/hello/:name", hello)
-	goji.Get("/store/info", sidewinderDirector.DatastoreInfo)
+	goji.Get("/store/info", RestHandler(sidewinderDirector.DatastoreInfo))
 
-	NewRestMux("/devices", goji.DefaultMux).Use(&RestHandler{
-		Post: catchErr(sidewinderDirector.postDevice),
-	}).Handle("/:id", &RestHandler{
-		Delete: NewDeviceHandler(sidewinderDirector.deleteDevice),
-	}).Handle("/notifications", &RestHandler{
-		Post: NewDeviceHandler(sidewinderDirector.PostNotification),
+	NewRestMux("/devices", goji.DefaultMux).Use(&RestEndpoint{
+		Post: RestHandler(sidewinderDirector.postDevice),
+	}).Handle("/:id", &RestEndpoint{
+		Delete: DeviceHandler(sidewinderDirector.deleteDevice),
+	}).Handle("/notifications", &RestEndpoint{
+		Post: DeviceHandler(sidewinderDirector.PostNotification),
 	})
 
 	return nil

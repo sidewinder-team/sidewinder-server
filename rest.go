@@ -17,23 +17,23 @@ func NewRestMux(pattern string, mux *web.Mux) *RestMux {
 	return &RestMux{mux, pattern}
 }
 
-func (self *RestMux) Use(handler *RestHandler) *RestMux {
+func (self *RestMux) Use(endpoint *RestEndpoint) *RestMux {
 	var methods []string
-	if handler.Get != nil {
-		self.Mux.Get(self.pattern, handler.Get)
+	if endpoint.Get != nil {
+		self.Mux.Get(self.pattern, endpoint.Get)
 		methods = append(methods, "GET")
 	}
-	if handler.Post != nil {
-		self.Mux.Post(self.pattern, handler.Post)
+	if endpoint.Post != nil {
+		self.Mux.Post(self.pattern, endpoint.Post)
 		methods = append(methods, "POST")
 	}
-	if handler.Put != nil {
-		self.Mux.Put(self.pattern, handler.Put)
+	if endpoint.Put != nil {
+		self.Mux.Put(self.pattern, endpoint.Put)
 		methods = append(methods, "PUT")
 	}
-	if handler.Delete != nil {
+	if endpoint.Delete != nil {
 		methods = append(methods, "DELETE")
-		self.Mux.Delete(self.pattern, handler.Delete)
+		self.Mux.Delete(self.pattern, endpoint.Delete)
 	}
 	if len(methods) > 0 {
 		self.Mux.Options(self.pattern, func(context web.C, writer http.ResponseWriter, request *http.Request) {
@@ -43,27 +43,25 @@ func (self *RestMux) Use(handler *RestHandler) *RestMux {
 	return self
 }
 
-func (self *RestMux) Handle(pattern string, handler *RestHandler) *RestMux {
+func (self *RestMux) Handle(pattern string, endpoint *RestEndpoint) *RestMux {
 	newRestMux := NewRestMux(self.pattern+pattern, self.Mux)
-	newRestMux.Use(handler)
+	newRestMux.Use(endpoint)
 	return newRestMux
 }
 
-type RestHandler struct {
-	Get    web.HandlerType
-	Put    web.HandlerType
-	Post   web.HandlerType
-	Delete web.HandlerType
+type RestEndpoint struct {
+	Get    web.Handler
+	Put    web.Handler
+	Post   web.Handler
+	Delete web.Handler
 }
 
-type Handler func(context web.C, writer http.ResponseWriter, request *http.Request) error
+type RestHandler func(context web.C, writer http.ResponseWriter, request *http.Request) error
 
-func catchErr(handler Handler) web.HandlerFunc {
-	return web.HandlerFunc(func(context web.C, writer http.ResponseWriter, request *http.Request) {
-		if err := handler(context, writer, request); err != nil {
-			writeJson(500, ErrorJson{err.Error()}, writer)
-		}
-	})
+func (self RestHandler) ServeHTTPC(context web.C, writer http.ResponseWriter, request *http.Request) {
+	if err := self(context, writer, request); err != nil {
+		writeJson(500, ErrorJson{err.Error()}, writer)
+	}
 }
 
 func writeJson(code int, value interface{}, writer http.ResponseWriter) error {
