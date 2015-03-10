@@ -12,16 +12,17 @@ import (
 var AddDeviceMissingDeviceIdError = ErrorJson{"POST to /devices must be a JSON with a DeviceId property."}
 
 type SidewinderDirector struct {
-	MongoDB string
-	session *mgo.Session
+	MongoDB          string
+	session          *mgo.Session
+	ApnsCommunicator *APNSCommunicator
 }
 
-func NewSidewinderDirector(mongoDB string) (*SidewinderDirector, error) {
+func NewSidewinderDirector(mongoDB string, communicator *APNSCommunicator) (*SidewinderDirector, error) {
 	session, err := mgo.Dial("mongo,localhost")
 	if err != nil {
 		return nil, err
 	}
-	return &SidewinderDirector{mongoDB, session}, nil
+	return &SidewinderDirector{mongoDB, session, communicator}, nil
 }
 
 func (self *SidewinderDirector) Store() *SidewinderStore {
@@ -83,37 +84,34 @@ type DeviceHandler func(id string, writer http.ResponseWriter, request *http.Req
 func NewDeviceHandler(deviceHandler DeviceHandler) web.HandlerFunc {
 	return func(context web.C, writer http.ResponseWriter, request *http.Request) {
 		deviceId := context.URLParams["id"]
-		if err := deviceHandler(deviceId, writer, request); err != nil {
+		err := deviceHandler(deviceId, writer, request)
+		if err != nil {
 			writeJson(500, ErrorJson{err.Error()}, writer)
 		}
 	}
 }
 
 func (self *SidewinderDirector) deleteDevice(deviceId string, writer http.ResponseWriter, request *http.Request) error {
-	deviceCollection := self.Store().DB().C("devices")
-
-	var result DeviceDocument
-	if err := deviceCollection.FindId(deviceId).One(&result); err != nil {
+	result, err := self.Store().FindDevice(deviceId)
+	if err != nil {
 		return err
 	}
 
-	if err := deviceCollection.RemoveId(deviceId); err != nil {
+	if err := self.Store().DeleteDevice(deviceId); err != nil {
 		return err
 	}
 
 	return writeJson(200, result, writer)
 }
 
-func (self *SidewinderDirector) PostNotification(apnsComs *APNSCommunicator) DeviceHandler {
-	return func(deviceId string, writer http.ResponseWriter, request *http.Request) error {
-		var notification map[string]string
-		if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
-			return decodeErr
-		}
-
-		if err := apnsComs.sendPushNotification(deviceId, notification["Alert"]); err != nil {
-			return err
-		}
-		return writeJson(201, notification, writer)
+func (self *SidewinderDirector) PostNotification(deviceId string, writer http.ResponseWriter, request *http.Request) error {
+	var notification map[string]string
+	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
+		return decodeErr
 	}
+
+	if err := self.ApnsCommunicator.sendPushNotification(deviceId, notification["Alert"]); err != nil {
+		return err
+	}
+	return writeJson(201, notification, writer)
 }

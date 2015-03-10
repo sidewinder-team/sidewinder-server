@@ -29,7 +29,7 @@ func main() {
 }
 
 func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
-	sidewinderDirector, err := NewSidewinderDirector(mongoDB)
+	sidewinderDirector, err := NewSidewinderDirector(mongoDB, apnsComs)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 	}).Handle("/:id", &RestHandler{
 		Delete: NewDeviceHandler(sidewinderDirector.deleteDevice),
 	}).Handle("/notifications", &RestHandler{
-		Post: NewDeviceHandler(sidewinderDirector.PostNotification(apnsComs)),
+		Post: NewDeviceHandler(sidewinderDirector.PostNotification),
 	})
 
 	return nil

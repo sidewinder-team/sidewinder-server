@@ -32,6 +32,19 @@ func (self *SidewinderStore) AddDevice(deviceId string) (bool, error) {
 	}
 }
 
+func (self *SidewinderStore) FindDevice(deviceId string) (DeviceDocument, error) {
+	deviceCollection := self.DB().C("devices")
+
+	var result DeviceDocument
+	err := deviceCollection.FindId(deviceId).One(&result)
+	return result, err
+}
+
+func (self *SidewinderStore) DeleteDevice(deviceId string) error {
+	deviceCollection := self.DB().C("devices")
+	return deviceCollection.RemoveId(deviceId)
+}
+
 type DatastoreInfo struct {
 	BuildInfo     mgo.BuildInfo
 	LiveServers   []string
