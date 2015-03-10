@@ -1,6 +1,10 @@
 package main
 
-import "github.com/anachronistic/apns"
+import (
+	"os"
+
+	"github.com/anachronistic/apns"
+)
 
 func (self *APNSCommunicator) sendPushNotification(deviceToken, alert string) error {
 	payload := apns.NewPayload()
@@ -24,5 +28,5 @@ func NewAPNSCommunicator() *APNSCommunicator {
 }
 
 func makeAppleNotificationServiceClient() apns.APNSClient {
-	return apns.NewClient("gateway.sandbox.push.apple.com:2195", "certificateFile", "keyFile")
+	return apns.BareClient(os.Getenv("PUSH_GATEWAY"), os.Getenv("CERTIFICATE"), os.Getenv("KEY"))
 }
