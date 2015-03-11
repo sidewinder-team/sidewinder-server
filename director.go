@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -109,8 +108,10 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 }
 
 func (self *SidewinderDirector) CircleNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
-	var buffer bytes.Buffer
-	buffer.ReadFrom(request.Body)
-	fmt.Printf("Sent body:\n%v", buffer.String())
+	var notification map[string]string
+	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
+		return decodeErr
+	}
+	fmt.Printf("Sent body:\n%v", notification)
 	return nil
 }
