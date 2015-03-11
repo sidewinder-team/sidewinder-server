@@ -114,9 +114,14 @@ func (self *SidewinderDirector) CircleNotify(context web.C, writer http.Response
 		return decodeErr
 	}
 
-	vcsUrl, ok := notification["vcs_url"].(string)
+	payload, ok := notification["payload"].(map[string]interface{})
 	if !ok {
-		return errors.New("Packet did not have a string property vcs_url")
+		return errors.New("Sent JSON did not have a 'payload' object.")
+	}
+
+	vcsUrl, ok := payload["vcs_url"].(string)
+	if !ok {
+		return errors.New("Sent JSON did not have a 'vcs_url' string.")
 	}
 
 	fmt.Printf("Time to notify everyone registered for project %v\n", vcsUrl)
