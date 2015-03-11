@@ -19,4 +19,4 @@ deployment:
       - curl -X POST $TUTUM_WEBHOOK
 notify:
   webhooks:
-    - http://sidewinder-server-a5b2d643-1.robertfmurdock.cont.tutum.io:5103/hooks/circle 
+    - url:  http://sidewinder-server-a5b2d643-1.robertfmurdock.cont.tutum.io:5103/hooks/circle 
