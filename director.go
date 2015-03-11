@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/zenazn/goji/web"
 	"gopkg.in/mgo.v2"
@@ -113,6 +114,5 @@ func (self *SidewinderDirector) CircleNotify(context web.C, writer http.Response
 		fmt.Printf("ERROR:  %v\n", decodeErr.Error())
 		return decodeErr
 	}
-	fmt.Printf("Sent body:\n%v\n", notification)
-	return nil
+	return json.NewEncoder(os.Stdout).Encode(notification)
 }
