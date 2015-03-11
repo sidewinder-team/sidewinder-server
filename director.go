@@ -110,9 +110,9 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 func (self *SidewinderDirector) CircleNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
 	var notification map[string]string
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
-		fmt.Printf("ERROR:  %v", decodeErr.Error())
+		fmt.Printf("ERROR:  %v\n", decodeErr.Error())
 		return decodeErr
 	}
-	fmt.Printf("Sent body:\n%v", notification)
+	fmt.Printf("Sent body:\n%v\n", notification)
 	return nil
 }
