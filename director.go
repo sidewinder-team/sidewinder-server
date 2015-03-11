@@ -2,9 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/zenazn/goji/web"
 	"gopkg.in/mgo.v2"
@@ -109,10 +109,16 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 }
 
 func (self *SidewinderDirector) CircleNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
-	var notification interface{}
+	var notification map[string]interface{}
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
-		fmt.Printf("ERROR:  %v\n", decodeErr.Error())
 		return decodeErr
 	}
-	return json.NewEncoder(os.Stdout).Encode(notification)
+
+	vcsUrl, ok := notification["vcs_url"].(string)
+	if !ok {
+		return errors.New("Packet did not have a string property vcs_url")
+	}
+
+	fmt.Printf("Time to notify everyone registered for project %v\n", vcsUrl)
+	return nil
 }

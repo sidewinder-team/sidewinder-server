@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -60,6 +61,7 @@ type RestHandler func(context web.C, writer http.ResponseWriter, request *http.R
 
 func (self RestHandler) ServeHTTPC(context web.C, writer http.ResponseWriter, request *http.Request) {
 	if err := self(context, writer, request); err != nil {
+		fmt.Printf("ERROR:  %v\n", err.Error())
 		writeJson(500, ErrorJson{err.Error()}, writer)
 	}
 }
