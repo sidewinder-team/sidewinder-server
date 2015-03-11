@@ -3,8 +3,6 @@ machine:
     - docker
 
 dependencies:
-  cache_directories:
-    - "~/docker"
   pre:
     - docker info
     - if [[ -e ~/docker/image.tar ]]; then docker load --input ~/docker/image.tar; fi
@@ -17,6 +15,7 @@ deployment:
       - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REPO
       - docker push tutum.co/robertfmurdock/sidewinder-server
       - curl -X POST $TUTUM_WEBHOOK
+      - sleep 10
 notify:
   webhooks:
     - url:  http://sidewinder-server-a5b2d643-1.robertfmurdock.cont.tutum.io:5103/hooks/circle 
