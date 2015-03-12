@@ -109,6 +109,11 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 }
 
 func (self *SidewinderDirector) CircleNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
+
+	fmt.Fprintln(writer, "About to write the recieved header:")
+	request.Header.Write(writer)
+	fmt.Fprintln(writer, "Just wrote the recieved header:")
+
 	var notification map[string]interface{}
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
 		return decodeErr
