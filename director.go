@@ -132,3 +132,28 @@ func (self *SidewinderDirector) CircleNotify(context web.C, writer http.Response
 	fmt.Printf("Time to notify everyone registered for project %v\n", vcsUrl)
 	return nil
 }
+
+func (self *SidewinderDirector) TravisNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
+
+	fmt.Fprintln(writer, "About to write the recieved header:")
+	request.Header.Write(writer)
+	fmt.Fprintln(writer, "Just wrote the recieved header:")
+
+	var notification map[string]interface{}
+	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
+		return decodeErr
+	}
+
+	payload, ok := notification["payload"].(map[string]interface{})
+	if !ok {
+		return errors.New("Sent JSON did not have a 'payload' object.")
+	}
+
+	vcsUrl, ok := payload["vcs_url"].(string)
+	if !ok {
+		return errors.New("Sent JSON did not have a 'vcs_url' string.")
+	}
+
+	fmt.Printf("Time to notify everyone registered for project %v\n", vcsUrl)
+	return nil
+}

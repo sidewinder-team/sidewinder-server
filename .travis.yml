@@ -7,3 +7,6 @@ go:
   - tip
 install:
   - go get -v -d -t
+notifications:
+  webhooks:
+    - http://sidewinder-server-a5b2d643-1.robertfmurdock.cont.tutum.io:5103/hooks/travis 
