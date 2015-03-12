@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 
@@ -139,10 +140,9 @@ func (self *SidewinderDirector) TravisNotify(context web.C, writer http.Response
 	request.Header.Write(os.Stdout)
 	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
 
-	var notification map[string]interface{}
-	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
-		return decodeErr
-	}
-	json.NewEncoder(os.Stdout).Encode(notification)
+	result, err := ioutil.ReadAll(request.Body)
+
+	fmt.Printf("Recieved: \n%s", result)
+
 	return nil
 }
