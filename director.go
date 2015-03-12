@@ -141,8 +141,11 @@ func (self *SidewinderDirector) TravisNotify(context web.C, writer http.Response
 	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
 
 	result, err := ioutil.ReadAll(request.Body)
-
-	fmt.Printf("Recieved: \n%s", result)
+	if err == nil {
+		fmt.Printf("Recieved: \n%s", result)
+	} else {
+		fmt.Printf("Err: ", err.Error())
+	}
 
 	return nil
 }
