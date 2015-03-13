@@ -28,5 +28,5 @@ func NewAPNSCommunicator() *APNSCommunicator {
 }
 
 func makeAppleNotificationServiceClient() apns.APNSClient {
-	return apns.BareClient(os.Getenv("PUSH_GATEWAY"), os.Getenv("CERTIFICATE"), os.Getenv("KEY"))
+	return apns.BareClient(os.Getenv("PUSH_GATEWAY"), os.Getenv("APNS_CERTIFICATE"), os.Getenv("APNS_KEY"))
 }
