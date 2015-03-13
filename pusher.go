@@ -30,8 +30,8 @@ func NewAPNSCommunicator() *APNSCommunicator {
 }
 
 func makeAppleNotificationServiceClient() apns.APNSClient {
-	certificate := strings.Replace(os.Getenv("APNS_CERTIFICATE"), "\\n", "\n", 0)
-	key := strings.Replace(os.Getenv("APNS_KEY"), "\\n", "\n", 0)
+	certificate := strings.Replace(os.Getenv("APNS_CERTIFICATE"), "\\n", "\n", -1)
+	key := strings.Replace(os.Getenv("APNS_KEY"), "\\n", "\n", -1)
 
 	fmt.Printf("CERT:\n%vKEY:\n%v", certificate, key)
 	gateway := os.Getenv("PUSH_GATEWAY")
