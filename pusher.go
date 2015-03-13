@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/anachronistic/apns"
@@ -28,5 +29,10 @@ func NewAPNSCommunicator() *APNSCommunicator {
 }
 
 func makeAppleNotificationServiceClient() apns.APNSClient {
+	fmt.Printf("CERT:\n%vKEY:\n%v", os.Getenv("APNS_CERTIFICATE"), os.Getenv("APNS_KEY"))
 	return apns.BareClient(os.Getenv("PUSH_GATEWAY"), os.Getenv("APNS_CERTIFICATE"), os.Getenv("APNS_KEY"))
 }
+
+// func makeAppleNotificationServiceClient() apns.APNSClient {
+// 	return apns.NewClient("gateway.sandbox.push.apple.com:2195", "cert-test.cert", "key-test.key")
+// }
