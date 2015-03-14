@@ -110,16 +110,29 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 	return writeJson(201, notification, writer)
 }
 
+type GithubMessage struct {
+	Name    string
+	Context string
+	State   string
+}
+
 func (self *SidewinderDirector) GithubNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
 	fmt.Fprintln(os.Stdout, "About to write the recieved header:")
 	request.Header.Write(os.Stdout)
 	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
 
-	if result, err := ioutil.ReadAll(request.Body); err == nil {
-		fmt.Printf("Recieved: \n%s\n", result)
-	} else {
-		fmt.Printf("Err: ", err.Error())
+	// if result, err := ioutil.ReadAll(request.Body); err == nil {
+	// 	fmt.Printf("Recieved: \n%s\n", result)
+	// } else {
+	// 	fmt.Printf("Err: ", err.Error())
+	// }
+
+	var notification GithubMessage
+	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
+		return decodeErr
 	}
+
+	fmt.Printf("Recieved: %v\n", notification)
 	return nil
 }
 
