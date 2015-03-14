@@ -45,12 +45,12 @@ func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
 		Post: DeviceHandler(sidewinderDirector.PostNotification),
 	})
 
-	NewRestMux("/hooks", goji.DefaultMux).
-		Handle("/github", &RestEndpoint{
-		Post: RestHandler(sidewinderDirector.GithubNotify)}).
-		Handle("/circle", &RestEndpoint{
-		Post: RestHandler(sidewinderDirector.CircleNotify)}).
-		Handle("/travis", &RestEndpoint{
+	hooksMux := NewRestMux("/hooks", goji.DefaultMux)
+	hooksMux.Handle("/github", &RestEndpoint{
+		Post: RestHandler(sidewinderDirector.GithubNotify)})
+	hooksMux.Handle("/circle", &RestEndpoint{
+		Post: RestHandler(sidewinderDirector.CircleNotify)})
+	hooksMux.Handle("/travis", &RestEndpoint{
 		Post: RestHandler(sidewinderDirector.TravisNotify)})
 	return nil
 }
