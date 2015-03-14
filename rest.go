@@ -18,7 +18,8 @@ func NewRestMux(pattern string, mux *web.Mux) *RestMux {
 	return &RestMux{mux, pattern}
 }
 
-func (self *RestMux) Use(endpoint *RestEndpoint) *RestMux {
+func (self *RestMux) Use(endpointHandler RestEndpointHandler) *RestMux {
+	endpoint := endpointHandler.Point()
 	var methods []string
 	if endpoint.Get != nil {
 		self.Mux.Get(self.pattern, endpoint.Get)
@@ -48,10 +49,21 @@ func (self *RestMux) Use(endpoint *RestEndpoint) *RestMux {
 	return self
 }
 
-func (self *RestMux) Handle(pattern string, endpoint *RestEndpoint) *RestMux {
+func (self *RestMux) Handle(pattern string, endpointHandler RestEndpointHandler) *RestMux {
+	endpoint := endpointHandler.Point()
 	newRestMux := NewRestMux(self.pattern+pattern, self.Mux)
 	newRestMux.Use(endpoint)
 	return newRestMux
+}
+
+type RestEndpointHandler interface {
+	Point() *RestEndpoint
+}
+
+type RestEndpointFunc func() *RestEndpoint
+
+func (self RestEndpointFunc) Point() *RestEndpoint {
+	return self()
 }
 
 type RestEndpoint struct {
@@ -60,6 +72,18 @@ type RestEndpoint struct {
 	Post   web.Handler
 	Delete web.Handler
 	Paths  map[string]RestEndpoint
+}
+
+func (self *RestEndpoint) Point() *RestEndpoint {
+	return self
+}
+
+func (self *RestEndpoint) Route(pattern string, endpoint RestEndpoint) *RestEndpoint {
+	if self.Paths == nil {
+		self.Paths = make(map[string]RestEndpoint)
+	}
+	self.Paths[pattern] = endpoint
+	return self
 }
 
 type RestHandler func(context web.C, writer http.ResponseWriter, request *http.Request) error

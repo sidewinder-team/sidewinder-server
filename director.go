@@ -98,10 +98,33 @@ func (self *SidewinderDirector) deleteDevice(deviceId string, writer http.Respon
 	return writeJson(200, result, writer)
 }
 
-func (self *SidewinderDirector) GetRepositories(deviceId string, writer http.ResponseWriter, request *http.Request) error {
+func (self *SidewinderDirector) DeviceMux() *RestEndpoint {
+	return (&RestEndpoint{
+		Delete: DeviceHandler(self.deleteDevice),
+	}).Route("/repositories", RestEndpoint{
+		Get:  DeviceHandler(self.GetRepositories),
+		Post: DeviceHandler(self.AddRepository),
+	}).Route("/notifications", RestEndpoint{
+		Post: DeviceHandler(self.PostNotification),
+	})
+}
 
-	repositories := []string{}
-	writeJson(200, repositories, writer)
+func (self *SidewinderDirector) GetRepositories(deviceId string, writer http.ResponseWriter, request *http.Request) error {
+	repositories, err := self.Store().RepositoriesForDevice(deviceId)
+
+	if err == nil {
+		writeJson(200, repositories, writer)
+	}
+	return err
+}
+
+func (self *SidewinderDirector) AddRepository(deviceId string, writer http.ResponseWriter, request *http.Request) error {
+	var repositoryMessage struct{ Name string }
+	if decodeErr := json.NewDecoder(request.Body).Decode(&repositoryMessage); decodeErr != nil {
+		return decodeErr
+	}
+	self.Store().AddDeviceToRepository(deviceId, repositoryMessage.Name)
+	writeJson(201, repositoryMessage, writer)
 	return nil
 }
 

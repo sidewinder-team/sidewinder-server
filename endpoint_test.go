@@ -65,6 +65,7 @@ var _ = Describe("Endpoint", func() {
 		Expect(db).NotTo(BeNil())
 
 		db.C("devices").DropCollection()
+		db.C("repositories").DropCollection()
 	})
 
 	AfterEach(func() {
@@ -226,6 +227,12 @@ var _ = Describe("Endpoint", func() {
 				})
 
 				Describe("GET", func() {
+
+					post := func(path string, data interface{}) {
+						request, _ := NewPOSTRequestWithJSON(path, data)
+						goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
+					}
+
 					It("will start by returning an empty array.", func() {
 						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
 						Expect(err).NotTo(HaveOccurred())
@@ -235,9 +242,36 @@ var _ = Describe("Endpoint", func() {
 						Expect(responseRecorder.Code).To(Equal(200))
 						Expect(responseRecorder.Body.String()).To(MatchJSON(`[]`))
 					})
+
+					It("will show all repositories posted to this device", func() {
+						repositoryName1 := "billandted/excellentadventure"
+						post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName1})
+						repositoryName2 := "billandted/bogusjourney"
+						post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName2})
+
+						post("/devices/differentDevice/repositories", struct{ Name string }{"red herring"})
+
+						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
+						Expect(err).NotTo(HaveOccurred())
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(200))
+						Expect(responseRecorder.Body.String()).To(MatchJSON(`[{"Name":"` + repositoryName1 + `"},{"Name":"` + repositoryName2 + `"}]`))
+					})
 				})
 				Describe("POST", func() {
+					It("will return 201 and the value when successfully put", func() {
+						repositoryName := "billandted/excellentadventure"
 
+						request, _ := NewPOSTRequestWithJSON("/devices/"+deviceId+"/repositories",
+							struct{ Name string }{repositoryName})
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(201))
+						Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Name":"` + repositoryName + `"}`))
+					})
 				})
 			})
 
