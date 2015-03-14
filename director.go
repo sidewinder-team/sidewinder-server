@@ -110,6 +110,19 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 	return writeJson(201, notification, writer)
 }
 
+func (self *SidewinderDirector) GithubNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
+	fmt.Fprintln(os.Stdout, "About to write the recieved header:")
+	request.Header.Write(os.Stdout)
+	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
+
+	if result, err := ioutil.ReadAll(request.Body); err == nil {
+		fmt.Printf("Recieved: \n%s", result)
+	} else {
+		fmt.Printf("Err: ", err.Error())
+	}
+	return nil
+}
+
 func (self *SidewinderDirector) CircleNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
 	fmt.Fprintln(os.Stdout, "About to write the recieved header:")
 	request.Header.Write(os.Stdout)
@@ -135,7 +148,6 @@ func (self *SidewinderDirector) CircleNotify(context web.C, writer http.Response
 }
 
 func (self *SidewinderDirector) TravisNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
-
 	fmt.Fprintln(os.Stdout, "About to write the recieved header:")
 	request.Header.Write(os.Stdout)
 	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
