@@ -41,6 +41,10 @@ func (self *RestMux) Use(endpoint *RestEndpoint) *RestMux {
 			writer.Header().Set("Allow", strings.Join(methods, ","))
 		})
 	}
+
+	for pattern, endpoint := range endpoint.Paths {
+		self.Handle(pattern, &endpoint)
+	}
 	return self
 }
 
@@ -55,6 +59,7 @@ type RestEndpoint struct {
 	Put    web.Handler
 	Post   web.Handler
 	Delete web.Handler
+	Paths  map[string]RestEndpoint
 }
 
 type RestHandler func(context web.C, writer http.ResponseWriter, request *http.Request) error

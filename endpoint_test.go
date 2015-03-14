@@ -51,29 +51,27 @@ func (self *ApnsMockClient) Send(pushNotification *apns.PushNotification) *apns.
 }
 
 var _ = Describe("Endpoint", func() {
+	var db *mgo.Database
+	apnsClient := &ApnsMockClient{}
+
+	BeforeEach(func() {
+		server.SetupRoutes(TestDatabaseName, &server.APNSCommunicator{func() apns.APNSClient {
+			return apnsClient
+		}})
+
+		session, err := mgo.Dial("mongo,localhost")
+		Expect(err).NotTo(HaveOccurred())
+		db = session.DB(TestDatabaseName)
+		Expect(db).NotTo(BeNil())
+
+		db.C("devices").DropCollection()
+	})
+
+	AfterEach(func() {
+		goji.DefaultMux = web.New()
+	})
 
 	Describe("/devices", func() {
-
-		var db *mgo.Database
-		apnsClient := &ApnsMockClient{}
-
-		BeforeEach(func() {
-			server.SetupRoutes(TestDatabaseName, &server.APNSCommunicator{func() apns.APNSClient {
-				return apnsClient
-			}})
-
-			session, err := mgo.Dial("mongo,localhost")
-			Expect(err).NotTo(HaveOccurred())
-			db = session.DB(TestDatabaseName)
-			Expect(db).NotTo(BeNil())
-
-			db.C("devices").DropCollection()
-		})
-
-		AfterEach(func() {
-			goji.DefaultMux = web.New()
-		})
-
 		Describe("POST", func() {
 			It("is able to add a new device.", func() {
 				responseRecorder := httptest.NewRecorder()
@@ -219,6 +217,30 @@ var _ = Describe("Endpoint", func() {
 				})
 			})
 
+			Describe("/repositories", func() {
+				deviceId := "repositoryTestDevice"
+				BeforeEach(func() {
+					deviceInfo := server.DeviceDocument{deviceId}
+					request, _ := NewPOSTRequestWithJSON("/devices", deviceInfo)
+					goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
+				})
+
+				Describe("GET", func() {
+					It("will start by returning an empty array.", func() {
+						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
+						Expect(err).NotTo(HaveOccurred())
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(200))
+						Expect(responseRecorder.Body.String()).To(MatchJSON(`[]`))
+					})
+				})
+				Describe("POST", func() {
+
+				})
+			})
+
 			Describe("/notifications", func() {
 				Describe("OPTIONS", func() {
 					It("Lists all the provided functions.", func() {
@@ -266,6 +288,13 @@ var _ = Describe("Endpoint", func() {
 						})
 					})
 				})
+			})
+		})
+	})
+
+	Describe("/hooks", func() {
+		Describe("/github", func() {
+			Describe("will notify a device when that device is registered on a repository", func() {
 			})
 		})
 	})

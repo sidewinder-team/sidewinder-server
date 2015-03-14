@@ -98,6 +98,13 @@ func (self *SidewinderDirector) deleteDevice(deviceId string, writer http.Respon
 	return writeJson(200, result, writer)
 }
 
+func (self *SidewinderDirector) GetRepositories(deviceId string, writer http.ResponseWriter, request *http.Request) error {
+
+	repositories := []string{}
+	writeJson(200, repositories, writer)
+	return nil
+}
+
 func (self *SidewinderDirector) PostNotification(deviceId string, writer http.ResponseWriter, request *http.Request) error {
 	var notification map[string]string
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
@@ -120,12 +127,6 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	fmt.Fprintln(os.Stdout, "About to write the recieved header:")
 	request.Header.Write(os.Stdout)
 	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
-
-	// if result, err := ioutil.ReadAll(request.Body); err == nil {
-	// 	fmt.Printf("Recieved: \n%s\n", result)
-	// } else {
-	// 	fmt.Printf("Err: ", err.Error())
-	// }
 
 	var notification GithubMessage
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
