@@ -116,7 +116,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
 
 	if result, err := ioutil.ReadAll(request.Body); err == nil {
-		fmt.Printf("Recieved: \n%s", result)
+		fmt.Printf("Recieved: \n%s\n", result)
 	} else {
 		fmt.Printf("Err: ", err.Error())
 	}
@@ -154,7 +154,7 @@ func (self *SidewinderDirector) TravisNotify(context web.C, writer http.Response
 
 	result, err := ioutil.ReadAll(request.Body)
 	if err == nil {
-		fmt.Printf("Recieved: \n%s", result)
+		fmt.Printf("Recieved: \n%s\n", result)
 	} else {
 		fmt.Printf("Err: ", err.Error())
 	}
