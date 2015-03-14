@@ -59,10 +59,8 @@ func (self *SidewinderDirector) postDevice(context web.C, writer http.ResponseWr
 	recordWasCreated, err := self.Store().AddDevice(sentJSON.DeviceId)
 	if err != nil {
 		return err
-	} else if recordWasCreated {
-		return writeJson(201, sentJSON, writer)
 	} else {
-		return writeJson(200, sentJSON, writer)
+		return writeJson(insertCode(recordWasCreated), sentJSON, writer)
 	}
 }
 
@@ -123,9 +121,20 @@ func (self *SidewinderDirector) AddRepository(deviceId string, writer http.Respo
 	if decodeErr := json.NewDecoder(request.Body).Decode(&repositoryMessage); decodeErr != nil {
 		return decodeErr
 	}
-	self.Store().AddDeviceToRepository(deviceId, repositoryMessage.Name)
-	writeJson(201, repositoryMessage, writer)
-	return nil
+	wasInserted, err := self.Store().AddDeviceToRepository(deviceId, repositoryMessage.Name)
+	if err != nil {
+		return err
+	}
+
+	return writeJson(insertCode(wasInserted), repositoryMessage, writer)
+}
+
+func insertCode(wasInserted bool) int {
+	if wasInserted {
+		return 201
+	} else {
+		return 200
+	}
 }
 
 func (self *SidewinderDirector) PostNotification(deviceId string, writer http.ResponseWriter, request *http.Request) error {
@@ -147,16 +156,21 @@ type GithubMessage struct {
 }
 
 func (self *SidewinderDirector) GithubNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
-	fmt.Fprintln(os.Stdout, "About to write the recieved header:")
-	request.Header.Write(os.Stdout)
-	fmt.Fprintln(os.Stdout, "Just wrote the recieved header:")
-
 	var notification GithubMessage
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
 		return decodeErr
 	}
 
-	fmt.Printf("Recieved: %v\n", notification)
+	repository, err := self.Store().FindRepository(notification.Name)
+	if err != nil {
+		return err
+	}
+
+	for _, deviceId := range repository.DeviceList {
+		self.ApnsCommunicator.sendPushNotification(deviceId, notification.State)
+	}
+
+	fmt.Fprintf(writer, "Accepted.")
 	return nil
 }
 

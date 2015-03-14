@@ -24,7 +24,10 @@ type DeviceDocument struct {
 
 func (self *SidewinderStore) AddDevice(deviceId string) (bool, error) {
 	document := DeviceDocument{deviceId}
-	info, err := self.DB().C("devices").UpsertId(deviceId, document)
+	return wasInserted(self.DB().C("devices").UpsertId(deviceId, document))
+}
+
+func wasInserted(info *mgo.ChangeInfo, err error) (bool, error) {
 	switch {
 	case err != nil:
 		return false, err
@@ -49,18 +52,24 @@ func (self *SidewinderStore) DeleteDevice(deviceId string) error {
 }
 
 type RepositoryDocument struct {
-	Name string `_id`
+	Name       string   `_id`
+	DeviceList []string `json:"-"`
 }
 
-func (self *SidewinderStore) AddDeviceToRepository(devideId, repositoryName string) error {
+func (self *SidewinderStore) AddDeviceToRepository(devideId, repositoryName string) (bool, error) {
 	repositoryCollection := self.DB().C("repositories")
 	update := struct {
 		Push interface{} `$push`
 	}{struct{ DeviceList string }{devideId}}
 
-	_, err := repositoryCollection.UpsertId(repositoryName, update)
+	return wasInserted(repositoryCollection.UpsertId(repositoryName, update))
+}
 
-	return err
+func (self *SidewinderStore) FindRepository(repositoryName string) (*RepositoryDocument, error) {
+	repositoryCollection := self.DB().C("repositories")
+	var repository RepositoryDocument
+	err := repositoryCollection.FindId(repositoryName).One(&repository)
+	return &repository, err
 }
 
 func (self *SidewinderStore) RepositoriesForDevice(deviceId string) ([]RepositoryDocument, error) {

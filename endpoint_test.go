@@ -52,9 +52,10 @@ func (self *ApnsMockClient) Send(pushNotification *apns.PushNotification) *apns.
 
 var _ = Describe("Endpoint", func() {
 	var db *mgo.Database
-	apnsClient := &ApnsMockClient{}
+	var apnsClient *ApnsMockClient
 
 	BeforeEach(func() {
+		apnsClient = &ApnsMockClient{}
 		server.SetupRoutes(TestDatabaseName, &server.APNSCommunicator{func() apns.APNSClient {
 			return apnsClient
 		}})
@@ -71,6 +72,11 @@ var _ = Describe("Endpoint", func() {
 	AfterEach(func() {
 		goji.DefaultMux = web.New()
 	})
+
+	post := func(path string, data interface{}) {
+		request, _ := NewPOSTRequestWithJSON(path, data)
+		goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
+	}
 
 	Describe("/devices", func() {
 		Describe("POST", func() {
@@ -227,12 +233,6 @@ var _ = Describe("Endpoint", func() {
 				})
 
 				Describe("GET", func() {
-
-					post := func(path string, data interface{}) {
-						request, _ := NewPOSTRequestWithJSON(path, data)
-						goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
-					}
-
 					It("will start by returning an empty array.", func() {
 						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
 						Expect(err).NotTo(HaveOccurred())
@@ -248,7 +248,6 @@ var _ = Describe("Endpoint", func() {
 						post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName1})
 						repositoryName2 := "billandted/bogusjourney"
 						post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName2})
-
 						post("/devices/differentDevice/repositories", struct{ Name string }{"red herring"})
 
 						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
@@ -270,6 +269,19 @@ var _ = Describe("Endpoint", func() {
 						responseRecorder := httptest.NewRecorder()
 						goji.DefaultMux.ServeHTTP(responseRecorder, request)
 						Expect(responseRecorder.Code).To(Equal(201))
+						Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Name":"` + repositoryName + `"}`))
+					})
+
+					It("will return 200 when value is already there", func() {
+						repositoryName := "billandted/excellentadventure"
+
+						post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName})
+						request, _ := NewPOSTRequestWithJSON("/devices/"+deviceId+"/repositories",
+							struct{ Name string }{repositoryName})
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(200))
 						Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Name":"` + repositoryName + `"}`))
 					})
 				})
@@ -328,7 +340,23 @@ var _ = Describe("Endpoint", func() {
 
 	Describe("/hooks", func() {
 		Describe("/github", func() {
-			Describe("will notify a device when that device is registered on a repository", func() {
+			It("will notify a device of new state when that device is registered on that repository", func() {
+				deviceId := "MotherBox"
+				repositoryName := "apokalypse/anti-life"
+				post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName})
+
+				apnsClient.Response = &apns.PushNotificationResponse{}
+
+				request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubMessage{repositoryName, "", "Fun!"})
+				responseRecorder := httptest.NewRecorder()
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				Expect(responseRecorder.Code).To(Equal(200))
+				Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+
+				Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
+				expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : 1}}`
+				Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
+				Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 			})
 		})
 	})
