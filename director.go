@@ -175,10 +175,11 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	}
 
 	branch := notification.Branches[0]
-	shouldNotify, err := self.IsFirstSuccessAfterFailure(notification.Name, branch.Name)
+	shouldNotify, err := self.IsFirstSuccessAfterFailure(notification, branch.Name)
 	if err != nil {
 		return err
 	}
+
 	if notification.State == "failure" || shouldNotify {
 		payload := apns.NewPayload()
 		payload.Alert = notification.Description
@@ -191,8 +192,12 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	return nil
 }
 
-func (self *SidewinderDirector) IsFirstSuccessAfterFailure(repository string, branch string) (bool, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%v/commits/%v/statuses", repository, branch+"^")
+func (self *SidewinderDirector) IsFirstSuccessAfterFailure(status GithubStatus, branch string) (bool, error) {
+	if status.State != "success" {
+		return false, nil
+	}
+
+	url := fmt.Sprintf("https://api.github.com/repos/%v/commits/%v/statuses", status.Name, branch+"^")
 	response, err := self.ApiCommunicator.Get(url)
 	if err != nil {
 		return false, err
