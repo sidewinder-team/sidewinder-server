@@ -23,8 +23,14 @@ const (
 )
 
 func NewPOSTRequestWithJSON(path string, body interface{}) (*http.Request, []byte) {
-	data, err := json.Marshal(body)
-	Expect(err).NotTo(HaveOccurred())
+	var data []byte
+	if value, ok := body.(string); ok {
+		data = []byte(value)
+	} else {
+		jsonData, err := json.Marshal(body)
+		Expect(err).NotTo(HaveOccurred())
+		data = jsonData
+	}
 
 	request, err := http.NewRequest("POST", path, bytes.NewReader(data))
 	Expect(err).NotTo(HaveOccurred())
@@ -383,7 +389,9 @@ var _ = Describe("Endpoint", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
 					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
 
-					request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubStatus{repositoryName, "", "", "Fun!", nil})
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[{"Name":"master"}]}`)
+
 					responseRecorder := httptest.NewRecorder()
 					goji.DefaultMux.ServeHTTP(responseRecorder, request)
 					Expect(responseRecorder.Code).To(Equal(200))
@@ -393,6 +401,45 @@ var _ = Describe("Endpoint", func() {
 					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
+
+					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+				})
+
+				It("when there was a recent failure on specific branch will notify a device of new state.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
+
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[{"Name":"experiment"}]}`)
+
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(200))
+					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
+					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
+					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
+
+					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses"))
+				})
+
+				It("when the status does not include a branch and error is returned.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
+
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[]}`)
+
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(400))
+					Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"Did not recieve a valid branch in Github status."}`))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 				})
 
 				It("when there was a success more recently than the failure will not notify a device of new state.", func() {
@@ -400,7 +447,9 @@ var _ = Describe("Endpoint", func() {
 
 					apiCommunicator.SetResponse(200, `[{"state":"success"},{"state":"failure"}]`)
 
-					request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubStatus{repositoryName, "", "", "Fun!", nil})
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[{"Name":"master"}]}`)
+
 					responseRecorder := httptest.NewRecorder()
 					goji.DefaultMux.ServeHTTP(responseRecorder, request)
 					Expect(responseRecorder.Code).To(Equal(200))
@@ -409,7 +458,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when there not a recent failure will not notify a device of new state.", func() {
@@ -417,7 +466,8 @@ var _ = Describe("Endpoint", func() {
 
 					apiCommunicator.SetResponse(200, `[{"state":"success"}]`)
 
-					request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubStatus{repositoryName, "", "", "Fun!", nil})
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[{"Name":"master"}]}`)
 					responseRecorder := httptest.NewRecorder()
 					goji.DefaultMux.ServeHTTP(responseRecorder, request)
 					Expect(responseRecorder.Code).To(Equal(200))
@@ -426,7 +476,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 			})
 		})

@@ -170,8 +170,12 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	if err != nil {
 		return err
 	}
+	if len(notification.Branches) < 1 {
+		return writeJson(400, ErrorJson{"Did not recieve a valid branch in Github status."}, writer)
+	}
 
-	shouldNotify, err := self.IsFirstSuccessAfterFailure(notification.Name, "master")
+	branch := notification.Branches[0]
+	shouldNotify, err := self.IsFirstSuccessAfterFailure(notification.Name, branch.Name)
 	if err != nil {
 		return err
 	}
@@ -189,7 +193,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 }
 
 func (self *SidewinderDirector) IsFirstSuccessAfterFailure(repository string, branch string) (bool, error) {
-	url := fmt.Sprintf("http://api.github.com/repos/%v/commits/%v/statuses", repository, "master")
+	url := fmt.Sprintf("http://api.github.com/repos/%v/commits/%v/statuses", repository, branch+"^")
 	response, _ := self.ApiCommunicator.Get(url)
 	var statuses []GithubStatus
 	if decodeErr := json.NewDecoder(response.Body).Decode(&statuses); decodeErr != nil {
