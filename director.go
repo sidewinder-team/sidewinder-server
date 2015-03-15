@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/anachronistic/apns"
 	"github.com/zenazn/goji/web"
 	"gopkg.in/mgo.v2"
 )
@@ -142,8 +143,10 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
 		return decodeErr
 	}
+	payload := apns.NewPayload()
+	payload.Alert = notification["Alert"]
 
-	if err := self.ApnsCommunicator.sendPushNotification(deviceId, notification["Alert"]); err != nil {
+	if err := self.ApnsCommunicator.sendPushNotification(deviceId, payload); err != nil {
 		return err
 	}
 	return writeJson(201, notification, writer)
@@ -167,7 +170,9 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	}
 
 	for _, deviceId := range repository.DeviceList {
-		self.ApnsCommunicator.sendPushNotification(deviceId, notification.State)
+		payload := apns.NewPayload()
+		payload.Alert = notification.State
+		self.ApnsCommunicator.sendPushNotification(deviceId, payload)
 	}
 
 	fmt.Fprintf(writer, "Accepted.")

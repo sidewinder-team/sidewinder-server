@@ -7,11 +7,7 @@ import (
 	"github.com/anachronistic/apns"
 )
 
-func (self *APNSCommunicator) sendPushNotification(deviceToken, alert string) error {
-	payload := apns.NewPayload()
-	payload.Alert = alert
-	payload.Badge = 1
-
+func (self *APNSCommunicator) sendPushNotification(deviceToken string, payload *apns.Payload) error {
 	pushNotification := apns.NewPushNotification()
 	pushNotification.DeviceToken = deviceToken
 	pushNotification.AddPayload(payload)
