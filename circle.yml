@@ -16,7 +16,3 @@ deployment:
       - docker push tutum.co/robertfmurdock/sidewinder-server
       - curl -X POST $TUTUM_WEBHOOK
       - sleep 15
-notify:
-  webhooks:
-#    - url:  $SIDEWINDER_WEBHOOK 
-     - url:  http://sidewinder-server-a5b2d643-1.robertfmurdock.cont.tutum.io:5103/hooks/circle
