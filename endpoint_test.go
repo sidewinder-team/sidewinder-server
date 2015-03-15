@@ -403,7 +403,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when there was a recent failure will notify a device of new state.", func() {
@@ -424,7 +424,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when there was a recent failure on specific branch will notify a device of new state.", func() {
@@ -445,7 +445,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses"))
 				})
 
 				It("when the status does not include a branch and error is returned.", func() {
@@ -479,7 +479,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when there not a recent failure will not notify a device of new state.", func() {
@@ -497,7 +497,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when github is not available errors are handled.", func() {
@@ -514,7 +514,7 @@ var _ = Describe("Endpoint", func() {
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 			})
 		})

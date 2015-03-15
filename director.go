@@ -192,7 +192,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 }
 
 func (self *SidewinderDirector) IsFirstSuccessAfterFailure(repository string, branch string) (bool, error) {
-	url := fmt.Sprintf("http://api.github.com/repos/%v/commits/%v/statuses", repository, branch+"^")
+	url := fmt.Sprintf("https://api.github.com/repos/%v/commits/%v/statuses", repository, branch+"^")
 	response, err := self.ApiCommunicator.Get(url)
 	if err != nil {
 		return false, err
