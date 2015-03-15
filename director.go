@@ -193,7 +193,11 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 
 func (self *SidewinderDirector) IsFirstSuccessAfterFailure(repository string, branch string) (bool, error) {
 	url := fmt.Sprintf("http://api.github.com/repos/%v/commits/%v/statuses", repository, branch+"^")
-	response, _ := self.ApiCommunicator.Get(url)
+	response, err := self.ApiCommunicator.Get(url)
+	if err != nil {
+		return false, err
+	}
+
 	var statuses []GithubStatus
 	if decodeErr := json.NewDecoder(response.Body).Decode(&statuses); decodeErr != nil {
 		return false, decodeErr

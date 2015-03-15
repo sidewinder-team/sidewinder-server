@@ -497,7 +497,24 @@ var _ = Describe("Endpoint", func() {
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("tp://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+				})
+
+				It("when github is not available errors are handled.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+
+					apiCommunicator.GetResponse.Err = errors.New("OH NO")
+
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[{"Name":"master"}]}`)
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(500))
+					Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"OH NO"}`))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
+					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 			})
 		})
