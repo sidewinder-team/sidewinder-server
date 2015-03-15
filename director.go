@@ -180,7 +180,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 		return err
 	}
 
-	if notification.State == "failure" || shouldNotify {
+	if notification.State == "failure" || notification.State == "error" || shouldNotify {
 		payload := apns.NewPayload()
 		payload.Alert = notification.Description
 		for _, deviceId := range repository.DeviceList {
@@ -213,6 +213,8 @@ func (self *SidewinderDirector) IsFirstSuccessAfterFailure(status GithubStatus, 
 		case "success":
 			return false, nil
 		case "failure":
+			return true, nil
+		case "error":
 			return true, nil
 		}
 	}
