@@ -497,7 +497,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("ttp://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("tp://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 			})
 		})
