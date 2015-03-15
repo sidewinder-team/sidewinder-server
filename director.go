@@ -153,9 +153,10 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 }
 
 type GithubMessage struct {
-	Name    string
-	Context string
-	State   string
+	Name        string
+	Context     string
+	State       string
+	Description string
 }
 
 func (self *SidewinderDirector) GithubNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
@@ -171,7 +172,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 
 	for _, deviceId := range repository.DeviceList {
 		payload := apns.NewPayload()
-		payload.Alert = notification.State
+		payload.Alert = notification.Description
 		self.ApnsCommunicator.sendPushNotification(deviceId, payload)
 	}
 

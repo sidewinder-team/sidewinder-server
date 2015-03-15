@@ -347,7 +347,7 @@ var _ = Describe("Endpoint", func() {
 
 				apnsClient.Response = &apns.PushNotificationResponse{}
 
-				request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubMessage{repositoryName, "", "Fun!"})
+				request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubMessage{repositoryName, "", "", "Fun!"})
 				responseRecorder := httptest.NewRecorder()
 				goji.DefaultMux.ServeHTTP(responseRecorder, request)
 				Expect(responseRecorder.Code).To(Equal(200))
