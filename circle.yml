@@ -14,4 +14,4 @@ deployment:
       - docker tag -f sidewinder-server tutum.co/robertfmurdock/sidewinder-server
       - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REPO
       - docker push tutum.co/robertfmurdock/sidewinder-server
-      - curl -X POST $TUTUM_WEBHOOK
+#      - curl -X POST $TUTUM_WEBHOOK
