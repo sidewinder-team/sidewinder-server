@@ -179,8 +179,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	if err != nil {
 		return err
 	}
-
-	if shouldNotify {
+	if notification.State == "failure" || shouldNotify {
 		payload := apns.NewPayload()
 		payload.Alert = notification.Description
 		for _, deviceId := range repository.DeviceList {
