@@ -16,14 +16,15 @@ type SidewinderDirector struct {
 	MongoDB          string
 	session          *mgo.Session
 	ApnsCommunicator *APNSCommunicator
+	ApiCommunicator  ApiCommunicator
 }
 
-func NewSidewinderDirector(mongoDB string, communicator *APNSCommunicator) (*SidewinderDirector, error) {
+func NewSidewinderDirector(mongoDB string, apnsCommunicator *APNSCommunicator, apiCommunicator ApiCommunicator) (*SidewinderDirector, error) {
 	session, err := mgo.Dial("mongo,localhost")
 	if err != nil {
 		return nil, err
 	}
-	return &SidewinderDirector{mongoDB, session, communicator}, nil
+	return &SidewinderDirector{mongoDB, session, apnsCommunicator, apiCommunicator}, nil
 }
 
 func (self *SidewinderDirector) Store() *SidewinderStore {
@@ -149,15 +150,18 @@ func (self *SidewinderDirector) PostNotification(deviceId string, writer http.Re
 	return writeJson(201, notification, writer)
 }
 
-type GithubMessage struct {
+type GithubStatus struct {
 	Name        string
 	Context     string
 	State       string
 	Description string
+	Branches    []struct {
+		Name string
+	}
 }
 
 func (self *SidewinderDirector) GithubNotify(context web.C, writer http.ResponseWriter, request *http.Request) error {
-	var notification GithubMessage
+	var notification GithubStatus
 	if decodeErr := json.NewDecoder(request.Body).Decode(&notification); decodeErr != nil {
 		return decodeErr
 	}
@@ -167,12 +171,38 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 		return err
 	}
 
-	for _, deviceId := range repository.DeviceList {
+	shouldNotify, err := self.IsFirstSuccessAfterFailure(notification.Name, "master")
+	if err != nil {
+		return err
+	}
+
+	if shouldNotify {
 		payload := apns.NewPayload()
 		payload.Alert = notification.Description
-		self.ApnsCommunicator.sendPushNotification(deviceId, payload)
+		for _, deviceId := range repository.DeviceList {
+			self.ApnsCommunicator.sendPushNotification(deviceId, payload)
+		}
 	}
 
 	fmt.Fprintf(writer, "Accepted.")
 	return nil
+}
+
+func (self *SidewinderDirector) IsFirstSuccessAfterFailure(repository string, branch string) (bool, error) {
+	url := fmt.Sprintf("http://api.github.com/repos/%v/commits/%v/statuses", repository, "master")
+	response, _ := self.ApiCommunicator.Get(url)
+	var statuses []GithubStatus
+	if decodeErr := json.NewDecoder(response.Body).Decode(&statuses); decodeErr != nil {
+		return false, decodeErr
+	}
+
+	for _, status := range statuses {
+		switch status.State {
+		case "success":
+			return false, nil
+		case "failure":
+			return true, nil
+		}
+	}
+	return false, nil
 }

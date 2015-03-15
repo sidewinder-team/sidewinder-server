@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 
@@ -50,15 +51,45 @@ func (self *ApnsMockClient) Send(pushNotification *apns.PushNotification) *apns.
 	return self.Response
 }
 
+type MockApiCommunicator struct {
+	GetUrls     []string
+	GetResponse struct {
+		Response *http.Response
+		Err      error
+	}
+}
+
+func (self *MockApiCommunicator) SetResponse(status int, body string) {
+	self.GetResponse.Response = &http.Response{
+		StatusCode: status,
+		Proto:      "HTTP/1.0",
+		ProtoMajor: 1,
+		ProtoMinor: 0,
+	}
+
+	if len(body) > 0 {
+		buf := bytes.NewBuffer([]byte(body))
+		self.GetResponse.Response.Body = ioutil.NopCloser(buf)
+	}
+}
+
+func (self *MockApiCommunicator) Get(url string) (*http.Response, error) {
+	self.GetUrls = append(self.GetUrls, url)
+	return self.GetResponse.Response, self.GetResponse.Err
+}
+
 var _ = Describe("Endpoint", func() {
 	var db *mgo.Database
 	var apnsClient *ApnsMockClient
+	var apiCommunicator *MockApiCommunicator
 
 	BeforeEach(func() {
 		apnsClient = &ApnsMockClient{}
-		server.SetupRoutes(TestDatabaseName, &server.APNSCommunicator{func() apns.APNSClient {
+		apnsCommunicator := &server.APNSCommunicator{func() apns.APNSClient {
 			return apnsClient
-		}})
+		}}
+		apiCommunicator = &MockApiCommunicator{}
+		server.SetupRoutes(TestDatabaseName, apnsCommunicator, apiCommunicator)
 
 		session, err := mgo.Dial("mongo,localhost")
 		Expect(err).NotTo(HaveOccurred())
@@ -340,23 +371,63 @@ var _ = Describe("Endpoint", func() {
 
 	Describe("/hooks", func() {
 		Describe("/github", func() {
-			It("will notify a device of new state when that device is registered on that repository", func() {
-				deviceId := "MotherBox"
-				repositoryName := "apokalypse/anti-life"
-				post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName})
+			deviceId := "MotherBox"
+			repositoryName := "apokalypse/anti-life"
 
-				apnsClient.Response = &apns.PushNotificationResponse{}
+			Describe("when the device is registered on that repository", func() {
+				BeforeEach(func() {
+					post("/devices/"+deviceId+"/repositories", struct{ Name string }{repositoryName})
+				})
 
-				request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubMessage{repositoryName, "", "", "Fun!"})
-				responseRecorder := httptest.NewRecorder()
-				goji.DefaultMux.ServeHTTP(responseRecorder, request)
-				Expect(responseRecorder.Code).To(Equal(200))
-				Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+				It("when there was a recent failure will notify a device of new state.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
 
-				Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-				expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
-				Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
-				Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
+					request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubStatus{repositoryName, "", "", "Fun!", nil})
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(200))
+					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
+					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
+					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
+				})
+
+				It("when there was a success more recently than the failure will not notify a device of new state.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+
+					apiCommunicator.SetResponse(200, `[{"state":"success"},{"state":"failure"}]`)
+
+					request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubStatus{repositoryName, "", "", "Fun!", nil})
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(200))
+					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
+
+					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master/statuses"))
+				})
+
+				It("when there not a recent failure will not notify a device of new state.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+
+					apiCommunicator.SetResponse(200, `[{"state":"success"}]`)
+
+					request, _ := NewPOSTRequestWithJSON("/hooks/github", server.GithubStatus{repositoryName, "", "", "Fun!", nil})
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(200))
+					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
+
+					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("http://api.github.com/repos/apokalypse/anti-life/commits/master/statuses"))
+				})
 			})
 		})
 	})

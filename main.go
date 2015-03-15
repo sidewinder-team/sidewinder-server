@@ -19,17 +19,17 @@ func hello(context web.C, w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	apnsCommunicator := NewAPNSCommunicator()
-	if err := SetupRoutes("SidewinderMain", apnsCommunicator); err != nil {
+	apiCommunicator := HttpCommunicator{}
+	if err := SetupRoutes("SidewinderMain", apnsCommunicator, apiCommunicator); err != nil {
 		fmt.Errorf("Error on launch:\n%v", err.Error())
 		os.Exit(1)
 		return
 	}
-
 	goji.Serve()
 }
 
-func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator) error {
-	sidewinderDirector, err := NewSidewinderDirector(mongoDB, apnsComs)
+func SetupRoutes(mongoDB string, apnsComs *APNSCommunicator, apiCommunicator ApiCommunicator) error {
+	sidewinderDirector, err := NewSidewinderDirector(mongoDB, apnsComs, apiCommunicator)
 	if err != nil {
 		return err
 	}
