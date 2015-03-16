@@ -398,7 +398,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 				})
@@ -416,7 +416,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 				})
@@ -434,7 +434,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 
@@ -470,7 +470,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 
@@ -491,7 +491,7 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
-					expectedPayload := `{"aps" : {"alert":"Fun!", "badge" : -1}}`
+					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 

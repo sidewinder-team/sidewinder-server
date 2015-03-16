@@ -182,7 +182,7 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 
 	if notification.State == "failure" || notification.State == "error" || shouldNotify {
 		payload := apns.NewPayload()
-		payload.Alert = notification.Description
+		payload.Alert = notification.Name + ": " + notification.Description
 		for _, deviceId := range repository.DeviceList {
 			self.ApnsCommunicator.sendPushNotification(deviceId, payload)
 		}
