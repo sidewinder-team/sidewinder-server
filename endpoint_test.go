@@ -376,6 +376,18 @@ var _ = Describe("Endpoint", func() {
 	})
 
 	Describe("/hooks", func() {
+		Describe("/meera", func() {
+			It("will ask everyone to work harder so this can be the best yearbook ever", func() {
+				request, err := http.NewRequest("GET", "/hooks/meera", nil)
+				Expect(err).NotTo(HaveOccurred())
+
+				responseRecorder := httptest.NewRecorder()
+				goji.DefaultMux.ServeHTTP(responseRecorder, request)
+				Expect(responseRecorder.Code).To(Equal(200))
+				Expect(responseRecorder.Body.String()).To(Equal(`"Hello world! Very creative." - Meera`))
+			})
+		})
+
 		Describe("/github", func() {
 			deviceId := "MotherBox"
 			repositoryName := "apokalypse/anti-life"
