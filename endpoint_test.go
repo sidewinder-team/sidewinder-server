@@ -447,9 +447,30 @@ var _ = Describe("Endpoint", func() {
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
 				})
 
-				It("when recieving a success and there was a recent failure will notify a device of new state.", func() {
+				It("when recieving a success and there was a failure in the previous commit will notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses", 200, `[{"state":"failure"}]`)
+					apiCommunicator.SetResponse("", 200, `[]`)
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses",
+						200, `[{"state":"failure"}]`)
+
+					request, _ := NewPOSTRequestWithJSON("/hooks/github",
+						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"master"}]}`)
+
+					responseRecorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(responseRecorder, request)
+					Expect(responseRecorder.Code).To(Equal(200))
+					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
+
+					Expect(len(apnsClient.NotificationsSent)).To(Equal(1))
+					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
+					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
+					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
+				})
+
+				It("when recieving a success and there was a previous failure in this commit will notify a device of new state.", func() {
+					apnsClient.Response = &apns.PushNotificationResponse{}
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master/statuses",
+						200, `[{"state":"success"}, {"state":"failure"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -482,6 +503,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when there was a recent failure on specific branch will notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
+					apiCommunicator.SetResponse("", 200, `[]`)
 					apiCommunicator.SetResponse(
 						"https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses",
 						200, `[{"state":"failure"}]`)
@@ -502,6 +524,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when there was a recent error on specific branch will notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
+					apiCommunicator.SetResponse("", 200, `[]`)
 					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses",
 						200, `[{"state":"error"}]`)
 
@@ -534,7 +557,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when there was a success more recently than the failure will not notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-
+					apiCommunicator.SetResponse("", 200, `[]`)
 					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses",
 						200, `[{"state":"success"},{"state":"failure"}]`)
 
@@ -551,7 +574,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when there not a recent failure will not notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-
+					apiCommunicator.SetResponse("", 200, `[]`)
 					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses",
 						200, `[{"state":"success"}]`)
 
@@ -579,7 +602,7 @@ var _ = Describe("Endpoint", func() {
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
+					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master/statuses"))
 				})
 			})
 		})

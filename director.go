@@ -192,20 +192,52 @@ func (self *SidewinderDirector) GithubNotify(context web.C, writer http.Response
 	return nil
 }
 
-func (self *SidewinderDirector) IsFirstSuccessAfterFailure(status GithubStatus, branch string) (bool, error) {
-	if status.State != "success" {
-		return false, nil
-	}
-
-	url := fmt.Sprintf("https://api.github.com/repos/%v/commits/%v/statuses", status.Name, branch+"^")
+func (self *SidewinderDirector) getStatusesForCommit(name string, commit string) ([]GithubStatus, error) {
+	url := fmt.Sprintf("https://api.github.com/repos/%v/commits/%v/statuses", name, commit)
 	response, err := self.ApiCommunicator.Get(url)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	var statuses []GithubStatus
 	if decodeErr := json.NewDecoder(response.Body).Decode(&statuses); decodeErr != nil {
-		return false, decodeErr
+		return nil, decodeErr
+	}
+	return statuses, nil
+}
+
+func (self *SidewinderDirector) hasAPreviousFailureInThisCommit(status GithubStatus, branch string) (bool, error) {
+	statuses, err := self.getStatusesForCommit(status.Name, branch)
+	if err != nil {
+		return false, err
+	}
+
+	successCount := 0
+	for _, status := range statuses {
+		switch status.State {
+		case "success":
+			successCount++
+			if successCount == 2 {
+				return false, nil
+			}
+		case "failure":
+			if successCount == 1 {
+				return true, nil
+			}
+		case "error":
+			if successCount == 1 {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+func (self *SidewinderDirector) hasFailuresInPreviousCommit(status GithubStatus, branch string) (bool, error) {
+	previousCommit := branch + "^"
+	statuses, err := self.getStatusesForCommit(status.Name, previousCommit)
+	if err != nil {
+		return false, err
 	}
 
 	for _, status := range statuses {
@@ -219,4 +251,19 @@ func (self *SidewinderDirector) IsFirstSuccessAfterFailure(status GithubStatus, 
 		}
 	}
 	return false, nil
+}
+
+func (self *SidewinderDirector) IsFirstSuccessAfterFailure(status GithubStatus, branch string) (bool, error) {
+	if status.State != "success" {
+		return false, nil
+	}
+
+	previousFailure, err := self.hasAPreviousFailureInThisCommit(status, branch)
+	if err != nil {
+		return false, err
+	} else if previousFailure {
+		return true, nil
+	} else {
+		return self.hasFailuresInPreviousCommit(status, branch)
+	}
 }
