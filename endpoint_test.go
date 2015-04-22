@@ -59,14 +59,32 @@ func (self *ApnsMockClient) Send(pushNotification *apns.PushNotification) *apns.
 
 type MockApiCommunicator struct {
 	GetUrls     []string
-	GetResponse struct {
+	ResponseMap map[string]*struct {
 		Response *http.Response
 		Err      error
 	}
 }
 
-func (self *MockApiCommunicator) SetResponse(status int, body string) {
-	self.GetResponse.Response = &http.Response{
+func NewMockApiCommunicator() *MockApiCommunicator {
+	communicator := &MockApiCommunicator{}
+	communicator.ResponseMap = make(map[string]*struct {
+		Response *http.Response
+		Err      error
+	})
+	communicator.ResponseMap[""] = &struct {
+		Response *http.Response
+		Err      error
+	}{}
+	return communicator
+}
+
+func (self *MockApiCommunicator) SetResponse(url string, status int, body string) {
+	getResponse := struct {
+		Response *http.Response
+		Err      error
+	}{}
+
+	getResponse.Response = &http.Response{
 		StatusCode: status,
 		Proto:      "HTTP/1.0",
 		ProtoMajor: 1,
@@ -75,13 +93,21 @@ func (self *MockApiCommunicator) SetResponse(status int, body string) {
 
 	if len(body) > 0 {
 		buf := bytes.NewBuffer([]byte(body))
-		self.GetResponse.Response.Body = ioutil.NopCloser(buf)
+		getResponse.Response.Body = ioutil.NopCloser(buf)
 	}
+
+	self.ResponseMap[url] = &getResponse
 }
 
 func (self *MockApiCommunicator) Get(url string) (*http.Response, error) {
 	self.GetUrls = append(self.GetUrls, url)
-	return self.GetResponse.Response, self.GetResponse.Err
+	getResponse := self.ResponseMap[url]
+
+	if getResponse == nil {
+		getResponse = self.ResponseMap[""]
+	}
+
+	return getResponse.Response, getResponse.Err
 }
 
 var _ = Describe("Endpoint", func() {
@@ -94,7 +120,7 @@ var _ = Describe("Endpoint", func() {
 		apnsCommunicator := &server.APNSCommunicator{func() apns.APNSClient {
 			return apnsClient
 		}}
-		apiCommunicator = &MockApiCommunicator{}
+		apiCommunicator = NewMockApiCommunicator()
 		server.SetupRoutes(TestDatabaseName, apnsCommunicator, apiCommunicator)
 
 		session, err := mgo.Dial("mongo,localhost")
@@ -387,7 +413,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when this state is failure will always notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"success"}]`)
+					apiCommunicator.SetResponse("", 200, `[{"state":"success"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"failure","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -405,7 +431,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when this state is error will always notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"success"}]`)
+					apiCommunicator.SetResponse("", 200, `[{"state":"success"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"error","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -423,7 +449,7 @@ var _ = Describe("Endpoint", func() {
 
 				It("when recieving a success and there was a recent failure will notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses", 200, `[{"state":"failure"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -437,14 +463,11 @@ var _ = Describe("Endpoint", func() {
 					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
-
-					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when recieving anything but success and there was a recent failure will not notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses", 200, `[{"state":"failure"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"intermediate","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -459,7 +482,9 @@ var _ = Describe("Endpoint", func() {
 
 				It("when there was a recent failure on specific branch will notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
+					apiCommunicator.SetResponse(
+						"https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses",
+						200, `[{"state":"failure"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"experiment"}]}`)
@@ -473,14 +498,12 @@ var _ = Describe("Endpoint", func() {
 					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
-
-					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses"))
 				})
 
 				It("when there was a recent error on specific branch will notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"error"}]`)
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses",
+						200, `[{"state":"error"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"experiment"}]}`)
@@ -494,14 +517,11 @@ var _ = Describe("Endpoint", func() {
 					expectedPayload := `{"aps" : {"alert":"apokalypse/anti-life: Fun!", "badge" : -1}}`
 					Expect(apnsClient.NotificationsSent[0].PayloadJSON()).To(MatchJSON(expectedPayload))
 					Expect(apnsClient.NotificationsSent[0].DeviceToken).To(Equal(deviceId))
-
-					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/experiment^/statuses"))
 				})
 
 				It("when the status does not include a branch return an error.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
-					apiCommunicator.SetResponse(200, `[{"state":"failure"}]`)
+					apiCommunicator.SetResponse("", 200, `[{"state":"failure"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"","description":"Fun!","branches":[]}`)
@@ -510,14 +530,13 @@ var _ = Describe("Endpoint", func() {
 					goji.DefaultMux.ServeHTTP(responseRecorder, request)
 					Expect(responseRecorder.Code).To(Equal(400))
 					Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"Did not recieve a valid branch in Github status."}`))
-
-					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 				})
 
 				It("when there was a success more recently than the failure will not notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
 
-					apiCommunicator.SetResponse(200, `[{"state":"success"},{"state":"failure"}]`)
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses",
+						200, `[{"state":"success"},{"state":"failure"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -528,15 +547,13 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
-
-					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when there not a recent failure will not notify a device of new state.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
 
-					apiCommunicator.SetResponse(200, `[{"state":"success"}]`)
+					apiCommunicator.SetResponse("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses",
+						200, `[{"state":"success"}]`)
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"master"}]}`)
@@ -546,15 +563,12 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Body.String()).To(Equal("Accepted."))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
-
-					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
-					Expect(apiCommunicator.GetUrls[0]).To(Equal("https://api.github.com/repos/apokalypse/anti-life/commits/master^/statuses"))
 				})
 
 				It("when github is not available errors are handled.", func() {
 					apnsClient.Response = &apns.PushNotificationResponse{}
 
-					apiCommunicator.GetResponse.Err = errors.New("OH NO")
+					apiCommunicator.ResponseMap[""].Err = errors.New("OH NO")
 
 					request, _ := NewPOSTRequestWithJSON("/hooks/github",
 						`{"name":"apokalypse/anti-life","context":"","state":"success","description":"Fun!","branches":[{"Name":"master"}]}`)
