@@ -598,7 +598,7 @@ var _ = Describe("Endpoint", func() {
 					responseRecorder := httptest.NewRecorder()
 					goji.DefaultMux.ServeHTTP(responseRecorder, request)
 					Expect(responseRecorder.Code).To(Equal(500))
-					Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"OH SNO"}`))
+					Expect(responseRecorder.Body.String()).To(MatchJSON(`{"Error":"OH NO"}`))
 
 					Expect(len(apnsClient.NotificationsSent)).To(Equal(0))
 					Expect(len(apiCommunicator.GetUrls)).To(Equal(1))
