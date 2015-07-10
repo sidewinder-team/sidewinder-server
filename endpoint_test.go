@@ -254,6 +254,8 @@ var _ = Describe("Endpoint", func() {
 				Expect(responseRecorder.Code).To(Equal(200))
 				Expect(responseRecorder.Body.String()).To(Equal(""))
 				Expect(responseRecorder.Header().Get("Allow")).To(Equal("POST"))
+				Expect(responseRecorder.Header().Get("Access-Control-Allow-Methods")).To(Equal("POST"))
+				Expect(responseRecorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
 			})
 		})
 		Describe("/:id", func() {
@@ -267,10 +269,24 @@ var _ = Describe("Endpoint", func() {
 					Expect(responseRecorder.Code).To(Equal(200))
 					Expect(responseRecorder.Body.String()).To(Equal(""))
 					Expect(responseRecorder.Header().Get("Allow")).To(Equal("DELETE"))
+					Expect(responseRecorder.Header().Get("Access-Control-Allow-Methods")).To(Equal("DELETE"))
+					Expect(responseRecorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
 				})
 			})
 
 			Describe("DELETE", func() {
+				It("will be allowed from any origin domain", func() {
+					deviceInfo := server.DeviceDocument{"alakazham"}
+					postRequest, _ := NewPOSTRequestWithJSON("/devices", deviceInfo)
+					goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), postRequest)
+
+					recorder := httptest.NewRecorder()
+					goji.DefaultMux.ServeHTTP(recorder, NewRequest("DELETE", "/devices/alakazham"))
+
+					Expect(recorder.Code).To(Equal(200))
+					Expect(recorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
+				})
+
 				It("will delete a previously added device", func() {
 					deviceInfo := server.DeviceDocument{"alakazham"}
 					postRequest, data := NewPOSTRequestWithJSON("/devices", deviceInfo)
@@ -295,7 +311,32 @@ var _ = Describe("Endpoint", func() {
 					goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
 				})
 
+				Describe("OPTIONS", func() {
+					It("Lists all the provided functions.", func() {
+						request, err := http.NewRequest("OPTIONS", "/devices/"+deviceId+"/repositories", nil)
+						Expect(err).NotTo(HaveOccurred())
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(200))
+						Expect(responseRecorder.Body.String()).To(Equal(""))
+						Expect(responseRecorder.Header().Get("Allow")).To(Equal("GET, POST"))
+						Expect(responseRecorder.Header().Get("Access-Control-Allow-Methods")).To(Equal("GET, POST"))
+						Expect(responseRecorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
+					})
+				})
+
 				Describe("GET", func() {
+					It("will be allowed from any origin domain", func() {
+						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
+						Expect(err).NotTo(HaveOccurred())
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(200))
+						Expect(responseRecorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
+					})
+
 					It("will start by returning an empty array.", func() {
 						request, err := http.NewRequest("GET", "/devices/"+deviceId+"/repositories", nil)
 						Expect(err).NotTo(HaveOccurred())
@@ -323,6 +364,18 @@ var _ = Describe("Endpoint", func() {
 					})
 				})
 				Describe("POST", func() {
+					It("will be allowed from any origin domain", func() {
+						repositoryName := "billandted/excellentadventure"
+
+						request, _ := NewPOSTRequestWithJSON("/devices/"+deviceId+"/repositories",
+							struct{ Name string }{repositoryName})
+
+						responseRecorder := httptest.NewRecorder()
+						goji.DefaultMux.ServeHTTP(responseRecorder, request)
+						Expect(responseRecorder.Code).To(Equal(201))
+						Expect(responseRecorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
+					})
+
 					It("will return 201 and the value when successfully put", func() {
 						repositoryName := "billandted/excellentadventure"
 
@@ -361,6 +414,8 @@ var _ = Describe("Endpoint", func() {
 						Expect(responseRecorder.Code).To(Equal(200))
 						Expect(responseRecorder.Body.String()).To(Equal(""))
 						Expect(responseRecorder.Header().Get("Allow")).To(Equal("POST"))
+						Expect(responseRecorder.Header().Get("Access-Control-Allow-Methods")).To(Equal("POST"))
+						Expect(responseRecorder.Header().Get("Access-Control-Allow-Origin")).To(Equal("*"))
 					})
 				})
 
