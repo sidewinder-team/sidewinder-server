@@ -39,7 +39,10 @@ func (self *RestMux) Use(endpointHandler RestEndpointHandler) *RestMux {
 	}
 	if len(methods) > 0 {
 		self.Mux.Options(self.pattern, func(context web.C, writer http.ResponseWriter, request *http.Request) {
-			writer.Header().Set("Allow", strings.Join(methods, ","))
+			methodListString := strings.Join(methods, ", ")
+			writer.Header().Set("Allow", methodListString)
+			writer.Header().Set("Access-Control-Allow-Methods", methodListString)
+			writer.Header().Set("Access-Control-Allow-Origin", "*")
 		})
 	}
 
@@ -89,6 +92,7 @@ func (self *RestEndpoint) Route(pattern string, endpoint RestEndpoint) *RestEndp
 type RestHandler func(context web.C, writer http.ResponseWriter, request *http.Request) error
 
 func (self RestHandler) ServeHTTPC(context web.C, writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
 	if err := self(context, writer, request); err != nil {
 		fmt.Printf("ERROR:  %v\n", err.Error())
 		writeJson(500, ErrorJson{err.Error()}, writer)

@@ -75,6 +75,7 @@ func decodeDeviceDocument(request *http.Request) *DeviceDocument {
 type DeviceHandler func(id string, writer http.ResponseWriter, request *http.Request) error
 
 func (self DeviceHandler) ServeHTTPC(context web.C, writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Access-Control-Allow-Origin", "*")
 	deviceId := context.URLParams["id"]
 	err := self(deviceId, writer, request)
 	if err != nil {
