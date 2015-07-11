@@ -1,7 +1,10 @@
 package main_test
 
 import (
+	"os"
+
 	. "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
 
 	"testing"
@@ -9,5 +12,7 @@ import (
 
 func TestSidewinderServer(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "SidewinderServer Suite")
+	os.MkdirAll("test-results", 0755)
+	junitReporter := reporters.NewJUnitReporter("test-results/junit.xml")
+	RunSpecsWithDefaultAndCustomReporters(t, "SidewinderServer Suite", []Reporter{junitReporter})
 }
