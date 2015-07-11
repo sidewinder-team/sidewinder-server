@@ -13,6 +13,6 @@ deployment:
       - docker tag -f sidewinder-server tutum.co/robertfmurdock/sidewinder-server
       - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS $DOCKER_REPO
       - docker push tutum.co/robertfmurdock/sidewinder-server
-general:
-  artifacts:
-    - "test-results"
+test:
+  post:
+    - mv test-results $CIRCLE_TEST_REPORTS/junit
