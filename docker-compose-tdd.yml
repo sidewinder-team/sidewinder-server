@@ -2,12 +2,11 @@ tests:
   build: .
   dockerfile: testDockerfile
   volumes:
-    - .:/go/src/github.com/sidewinder-team/sidewinder-server
-  ports:
-    - "8000:8000"
+    - ".:/go/src/github.com/sidewinder-team/sidewinder-server"
   links:
-    - "mongo:mongo"
-mongo:
-  image: tutum/mongodb
-  environment:
-    - AUTH=no
+    - "testmongo:mongo"
+testmongo:
+  extends:
+    file: docker-compose.yml
+    service: mongo
+  log_driver: none
