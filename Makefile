@@ -1,12 +1,12 @@
-
-# make sure build tools are installed
-EXECUTABLES = docker docker-compose
-OK := $(foreach exec,$(EXECUTABLES),\
-        $(if $(shell which $(exec)),,$(error "No '$(exec)' in PATH)))
-
 TEST_COMPOSE = docker-compose -f docker-compose-tdd.yml
 
 # ----------------------------------------------------------------------
+
+test: dependencies
+	go test -v ./...
+
+dependencies:
+	go get -v -d -t
 
 tdd: docker-connected test-clean
 	$(TEST_COMPOSE) up
