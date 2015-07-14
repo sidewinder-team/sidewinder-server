@@ -43,6 +43,7 @@ func (self *RestMux) Use(endpointHandler RestEndpointHandler) *RestMux {
 			writer.Header().Set("Allow", methodListString)
 			writer.Header().Set("Access-Control-Allow-Methods", methodListString)
 			writer.Header().Set("Access-Control-Allow-Origin", "*")
+			writer.Header().Set("Access-Control-Allow-Headers", request.Header.Get("Access-Control-Request-Headers"))
 		})
 	}
 

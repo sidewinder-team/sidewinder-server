@@ -141,6 +141,20 @@ var _ = Describe("Endpoint", func() {
 		goji.DefaultMux.ServeHTTP(httptest.NewRecorder(), request)
 	}
 
+	ItAllowsAnyRequestHeaders := func(path string) {
+		It("Allows any reuqest headers.", func() {
+			request, err := http.NewRequest("OPTIONS", path, nil)
+			Expect(err).NotTo(HaveOccurred())
+
+			request.Header.Add("Access-Control-Request-Headers", "Content-Type, X-Something-Else")
+
+			responseRecorder := httptest.NewRecorder()
+			goji.DefaultMux.ServeHTTP(responseRecorder, request)
+
+			Expect(responseRecorder.Header().Get("Access-Control-Allow-Headers")).To(Equal("Content-Type, X-Something-Else"))
+		})
+	}
+
 	Describe("/devices", func() {
 		Describe("POST", func() {
 			It("is able to add a new device.", func() {
@@ -245,6 +259,7 @@ var _ = Describe("Endpoint", func() {
 		})
 
 		Describe("OPTIONS", func() {
+			ItAllowsAnyRequestHeaders("/devices")
 			It("Lists all the provided functions.", func() {
 				request, err := http.NewRequest("OPTIONS", "/devices", nil)
 				Expect(err).NotTo(HaveOccurred())
@@ -260,6 +275,7 @@ var _ = Describe("Endpoint", func() {
 		})
 		Describe("/:id", func() {
 			Describe("OPTIONS", func() {
+				ItAllowsAnyRequestHeaders("/devices/bibitty")
 				It("Lists all the provided functions.", func() {
 					request, err := http.NewRequest("OPTIONS", "/devices/bibitty", nil)
 					Expect(err).NotTo(HaveOccurred())
@@ -312,6 +328,7 @@ var _ = Describe("Endpoint", func() {
 				})
 
 				Describe("OPTIONS", func() {
+					ItAllowsAnyRequestHeaders("/devices/" + deviceId + "/repositories")
 					It("Lists all the provided functions.", func() {
 						request, err := http.NewRequest("OPTIONS", "/devices/"+deviceId+"/repositories", nil)
 						Expect(err).NotTo(HaveOccurred())
@@ -405,6 +422,7 @@ var _ = Describe("Endpoint", func() {
 
 			Describe("/notifications", func() {
 				Describe("OPTIONS", func() {
+					ItAllowsAnyRequestHeaders("/devices/token/notifications")
 					It("Lists all the provided functions.", func() {
 						request, err := http.NewRequest("OPTIONS", "/devices/token/notifications", nil)
 						Expect(err).NotTo(HaveOccurred())
